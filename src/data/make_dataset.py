@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import os
+
 import click
 import logging
 from pathlib import Path
@@ -14,6 +16,7 @@ def main(input_filepath, output_filepath):
     """
     logger = logging.getLogger(__name__)
     logger.info('making final data set from raw data')
+    df_train = pd.read_csv()
 
 
 if __name__ == '__main__':
@@ -26,5 +29,7 @@ if __name__ == '__main__':
     # find .env automagically by walking up directories until it's found, then
     # load up the .env entries as environment variables
     load_dotenv(find_dotenv())
+    input_filepath = os.path.join(project_dir,'raw')
+    output_filepath = os.path.join(project_dir,'processed')
 
-    main()
+    main(input_filepath,output_filepath)
