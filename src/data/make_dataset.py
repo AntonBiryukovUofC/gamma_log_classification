@@ -97,5 +97,5 @@ if __name__ == '__main__':
     load_dotenv(find_dotenv())
     input_filepath = os.path.join(project_dir, 'data','raw')
     output_filepath = os.path.join(project_dir, 'data','processed')
-
+    os.makedirs(output_filepath,exist_ok=True)
     main(input_filepath, output_filepath)
