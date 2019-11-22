@@ -36,20 +36,21 @@ def main(input_file_path, output_file_path, n_splits=5):
     for k, (train_index, test_index) in enumerate(cv.split(X, y, groups)):
 
         X_train, X_holdout = X.iloc[train_index, :], X.iloc[test_index, :]
-        model = LGBMClassifier(
-            objective="multiclass",
+        model = LGBMClassifier(n_estimators=500,
+                               learning_rate=0.1,
+            objective="multiclassova",
+            is_unbalance=True,
             random_state=k,
             n_jobs=-1,
+
+
         )
 
         y_train, y_holdout = y.iloc[train_index], y.iloc[test_index]
 
         model.fit(
             X_train,
-            y_train,
-            eval_set=(X_holdout, y_holdout),
-            early_stopping_rounds=50,
-            verbose=200,
+            y_train
         )
         # model.fit(X_train, y_train)
         score = accuracy_score(y_holdout, model.predict(X_holdout))
