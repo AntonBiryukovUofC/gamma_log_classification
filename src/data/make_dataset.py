@@ -10,6 +10,7 @@ import concurrent.futures
 from tqdm import tqdm
 from scipy.signal import medfilt
 
+
 def diff_sum(x):
     res = np.diff(x).sum()
     return res
@@ -28,11 +29,19 @@ def rolling_slope(x):
     return res
 
 
+def flipped_slope(x):
+    model_ols = LinearRegression()
+    idx = np.arange(x.shape[0])
+    model_ols.fit(idx.reshape(-1, 1), x[::-1].reshape(-1, 1))
+    res = model_ols.coef_[0]
+    return res
+
+
 def apply_rolling_functions(df, col='GR', window=10,
                             func=None):
     if func is None:
         func = {'mean': np.mean, 'std': np.std, 'diff_sum': diff_sum, 'abs_diff_sum': abs_diff_sum,
-                'slope': rolling_slope}
+                'slope': rolling_slope, 'flipped_slope': flipped_slope}
     names = []
     for k, v in func.items():
         series = df.loc[:, col].rolling(window=window, center=True, min_periods=1).apply(v, raw=True)
@@ -44,12 +53,12 @@ def apply_rolling_functions(df, col='GR', window=10,
 
 
 def preprocess_a_well(df_well):
-    df_well['GR_medfilt'] = medfilt(df_well['GR'],21)
-    df_feats_w10 = apply_rolling_functions(df_well, window=10,col='GR_medfilt')
-    df_feats_w20 = apply_rolling_functions(df_well, window=20,col='GR_medfilt')
-    df_feats_w60 = apply_rolling_functions(df_well, window=50,col='GR_medfilt')
-    df_feats_w150 = apply_rolling_functions(df_well, window=100,col='GR_medfilt')
-    df_feats = df_well
+    df_well['GR_medfilt'] = medfilt(df_well['GR'], 21)
+    df_feats_ws = apply_rolling_functions(df_well.copy(), window=10, col='GR_medfilt')
+    df_feats_wm = apply_rolling_functions(df_well.copy(), window=20, col='GR_medfilt')
+    df_feats_wl = apply_rolling_functions(df_well.copy(), window=50, col='GR_medfilt')
+    df_feats_wxl = apply_rolling_functions(df_well.copy(), window=100, col='GR_medfilt')
+    df_feats = pd.concat([df_well, df_feats_ws, df_feats_wm, df_feats_wl, df_feats_wxl], axis=1)
     return df_feats
 
 
@@ -69,7 +78,7 @@ def preprocess_dataset(df, n_wells=50):
 def preprocess_dataset_parallel(df, n_wells=50):
     wells = df['well_id'].unique().tolist()[:n_wells]
     list_df_wells = [df.loc[df['well_id'].isin([w]), :].copy() for w in wells]
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=12) as executor:
         results = list(tqdm(executor.map(preprocess_a_well, list_df_wells), total=len(list_df_wells)))
 
     df_preprocessed = pd.concat(results, axis=0)
