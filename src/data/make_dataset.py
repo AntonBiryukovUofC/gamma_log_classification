@@ -29,19 +29,47 @@ def rolling_slope(x):
     return res
 
 
-def flipped_slope(x):
-    model_ols = LinearRegression()
-    idx = np.arange(x.shape[0])
-    model_ols.fit(idx.reshape(-1, 1), x[::-1].reshape(-1, 1))
-    res = model_ols.coef_[0]
+def make_parabolic(w, amp=50):
+    x = [0, w / 2, w]
+    y = [amp, 0, amp]
+    p_coef = np.polyfit(x, y, 2)
+    p = np.poly1d(p_coef)
+    x_new = np.arange(w)
+    res = p(x_new)
     return res
+
+
+def corr_with_parabolic(x, y):
+    res = np.correlate(x, y).max()
+    return res
+
+
+def value_middle_vs_ends(x):
+    left = x[:2].mean()
+    right = x[-2:].mean()
+    mid = x[x.shape[0] // 2]
+    res = (left + right) * 0.5 - mid
+    return res
+
+
+def calculate_lags(s, note='series', lags=None):
+    if lags is None:
+        lags = [1, 2, 3, 4]
+    names = []
+    series = []
+    for l in lags:
+        series.append(s.shift(l))
+        names.append(f"{note}_lag_{l}")
+    df = pd.DataFrame(dict(zip(names, series)))
+    return df
 
 
 def apply_rolling_functions(df, col='GR', window=10,
                             func=None):
+    template = make_parabolic(w=window)
     if func is None:
         func = {'mean': np.mean, 'std': np.std, 'diff_sum': diff_sum, 'abs_diff_sum': abs_diff_sum,
-                'slope': rolling_slope, 'flipped_slope': flipped_slope}
+                'slope': rolling_slope, 'mid_vs_end': value_middle_vs_ends}
     names = []
     for k, v in func.items():
         series = df.loc[:, col].rolling(window=window, center=True, min_periods=1).apply(v, raw=True)
@@ -54,11 +82,14 @@ def apply_rolling_functions(df, col='GR', window=10,
 
 def preprocess_a_well(df_well):
     df_well['GR_medfilt'] = medfilt(df_well['GR'], 21)
+    # Add lag variables:
+    df_lags = calculate_lags(s=df_well['GR_medfilt'], note='GR_medfilt', lags=np.arange(-50, 50, 5))
+
     df_feats_ws = apply_rolling_functions(df_well.copy(), window=10, col='GR_medfilt')
     df_feats_wm = apply_rolling_functions(df_well.copy(), window=20, col='GR_medfilt')
     df_feats_wl = apply_rolling_functions(df_well.copy(), window=50, col='GR_medfilt')
-    df_feats_wxl = apply_rolling_functions(df_well.copy(), window=100, col='GR_medfilt')
-    df_feats = pd.concat([df_well, df_feats_ws, df_feats_wm, df_feats_wl, df_feats_wxl], axis=1)
+    df_feats_wxl = apply_rolling_functions(df_well.copy(), window=120, col='GR_medfilt')
+    df_feats = pd.concat([df_well,df_lags,df_feats_ws, df_feats_wm, df_feats_wl, df_feats_wxl], axis=1)
     return df_feats
 
 
@@ -78,6 +109,9 @@ def preprocess_dataset(df, n_wells=50):
 def preprocess_dataset_parallel(df, n_wells=50):
     wells = df['well_id'].unique().tolist()[:n_wells]
     list_df_wells = [df.loc[df['well_id'].isin([w]), :].copy() for w in wells]
+    for df in list_df_wells:
+        df.index=np.arange(df.shape[0])
+
     with concurrent.futures.ProcessPoolExecutor(max_workers=12) as executor:
         results = list(tqdm(executor.map(preprocess_a_well, list_df_wells), total=len(list_df_wells)))
 
@@ -99,7 +133,7 @@ def main(input_filepath, output_filepath):
 
     n_test = df_test['well_id'].unique().shape[0]
 
-    df_train_processed = preprocess_dataset_parallel(df_train, n_wells=75)
+    df_train_processed = preprocess_dataset_parallel(df_train, n_wells=5)
     df_train_processed.to_pickle(fname_final_train)
 
     #  fname_final_test = os.path.join(output_filepath, 'test.pck')

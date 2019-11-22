@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from lightgbm import LGBMClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import GroupKFold
 
 project_dir = Path(__file__).resolve().parents[2]
@@ -24,12 +24,13 @@ def main(input_file_path, output_file_path, n_splits=5):
 
     models = []
     scores = []
+    f1_scores = []
     scores_dm = []
 
     y = df.loc[~df[tgt].isna(), tgt]
     X = df.loc[~df[tgt].isna(), :].drop(["well_id", tgt,'row_id'], axis=1)
     groups = df.loc[~df[tgt].isna(), 'well_id']
-    preds_holdout = np.zeros((df.shape[0], 5))
+    preds_holdout = np.ones((df.shape[0], 5))*(-50)
     cv= GroupKFold(n_splits)
 
     for k, (train_index, test_index) in enumerate(cv.split(X, y, groups)):
@@ -52,9 +53,11 @@ def main(input_file_path, output_file_path, n_splits=5):
         )
         # model.fit(X_train, y_train)
         score = accuracy_score(y_holdout, model.predict(X_holdout))
+        f1_sc = f1_score(y_holdout, model.predict(X_holdout),labels = [1,2,3,4],average='weighted')
+        f1_scores.append(f1_sc)
         models.append(model)
         scores.append(score)
-        logging.info(f"{k} - Holdout score = {score}")
+        logging.info(f"{k} - Holdout score = {score}, f1 = {f1_sc}")
         preds_holdout[test_index, :] = model.predict_proba(X_holdout)
 
         interim_file_path = os.path.join(project_dir, "data", "interim")
@@ -63,6 +66,11 @@ def main(input_file_path, output_file_path, n_splits=5):
         df_preds = pd.concat([df,df_preds],axis = 1)
         df_preds['pred'] = np.argmax(preds_holdout,axis=1)
         df_preds.to_pickle(os.path.join(interim_file_path,'holdout_lgbm.pck'))
+    logging.info(f" Holdout score = {np.mean(scores)} , std = {np.std(scores)}")
+    logging.info(f" Holdout F1 score = {np.mean(f1_scores)} , std = {np.std(f1_scores)}")
+
+    logging.info(f" OOF Holdout score = {accuracy_score(y,np.argmax(preds_holdout,axis=1))} ")
+    logging.info(f" OOF Holdout F1 score = {f1_score(y,np.argmax(preds_holdout,axis=1),labels = [1,2,3,4],average='weighted')}")
 
 
 if __name__ == "__main__":
