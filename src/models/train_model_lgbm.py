@@ -18,9 +18,10 @@ tgt='label'
 
 def main(input_file_path, output_file_path, n_splits=5):
     input_file_name = os.path.join(input_file_path, "train.pck")
-    #input_file_name_test = os.path.join(input_file_path, "Test_final.pck")
+    input_file_name_test = os.path.join(input_file_path, "test.pck")
    # output_file_name = os.path.join(output_file_path, f"models_lgbm.pck")
     df = pd.read_pickle(input_file_name).sample(frac=0.05)
+    df_test = pd.read_pickle(input_file_name_test)
 
     models = []
     scores = []
@@ -29,16 +30,20 @@ def main(input_file_path, output_file_path, n_splits=5):
 
     y = df.loc[~df[tgt].isna(), tgt]
     X = df.loc[~df[tgt].isna(), :].drop(["well_id", tgt,'row_id'], axis=1)
+    X_test = df_test.drop(["well_id",'row_id'], axis=1)
+
     groups = df.loc[~df[tgt].isna(), 'well_id']
     print(groups.unique())
     preds_holdout = np.ones((df.shape[0], 5))*(-50)
+    preds_test = np.zeros((n_splits, df_test.shape[0], 5))
+
     cv= GroupKFold(n_splits)
 
     for k, (train_index, test_index) in enumerate(cv.split(X, y, groups)):
 
         X_train, X_holdout = X.iloc[train_index, :], X.iloc[test_index, :]
-        model = LGBMClassifier(n_estimators=1500,
-                               learning_rate=0.05,
+        model = LGBMClassifier(n_estimators=500,
+                               learning_rate=0.08,
             objective="multiclass",
             random_state=k,
             n_jobs=-1,
@@ -51,7 +56,9 @@ def main(input_file_path, output_file_path, n_splits=5):
         model.fit(
             X_train,
             y_train,
-            verbose=200
+            verbose=200,
+            eval_set=(X_holdout,y_holdout),
+            early_stopping_rounds=50
         )
         # model.fit(X_train, y_train)
         score = accuracy_score(y_holdout, model.predict(X_holdout))
@@ -61,6 +68,7 @@ def main(input_file_path, output_file_path, n_splits=5):
         scores.append(score)
         logging.info(f"{k} - Holdout score = {score}, f1 = {f1_sc}")
         preds_holdout[test_index, :] = model.predict_proba(X_holdout)
+        preds_test[k, :, :] = model.predict_proba(X_test)
 
         interim_file_path = os.path.join(project_dir, "data", "interim")
         os.makedirs(interim_file_path, exist_ok=True)
@@ -74,6 +82,9 @@ def main(input_file_path, output_file_path, n_splits=5):
     logging.info(f" OOF Holdout score = {accuracy_score(y,np.argmax(preds_holdout,axis=1))} ")
     logging.info(f" OOF Holdout F1 score = {f1_score(y,np.argmax(preds_holdout,axis=1),labels = [1,2,3,4],average='weighted')}")
 
+    preds_df = df_test[['row_id','well_id']]
+    preds_df['label'] = np.argmax(preds_test.sum(axis=0), axis=1)
+    return preds_df
 
 if __name__ == "__main__":
     # not used in this stub but often useful for finding various files
@@ -85,6 +96,5 @@ if __name__ == "__main__":
     os.makedirs(input_file_path, exist_ok=True)
     os.makedirs(output_file_path, exist_ok=True)
 
-    preds_wsc = main(input_file_path, output_file_path)
-
-    df = preds_wsc
+    preds_test = main(input_file_path, output_file_path)
+    preds_test.to_csv(os.path.join(input_file_path,'submit.csv'),index=False)

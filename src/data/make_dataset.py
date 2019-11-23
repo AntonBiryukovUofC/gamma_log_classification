@@ -139,10 +139,10 @@ def main(input_filepath, output_filepath):
     df_train_processed = preprocess_dataset_parallel(df_train, n_wells=300)
     df_train_processed.to_pickle(fname_final_train)
 
-    #  fname_final_test = os.path.join(output_filepath, 'test.pck')
+    fname_final_test = os.path.join(output_filepath, 'test.pck')
 
-    # df_test_processed = preprocess_dataset_parallel(df_test, n_wells=n_test)
-    # df_test_processed.to_pickle(fname_final_test)
+    df_test_processed = preprocess_dataset_parallel(df_test, n_wells=n_test)
+    df_test_processed.to_pickle(fname_final_test)
 
 
 if __name__ == '__main__':
