@@ -30,6 +30,7 @@ def main(input_file_path, output_file_path, n_splits=5):
     y = df.loc[~df[tgt].isna(), tgt]
     X = df.loc[~df[tgt].isna(), :].drop(["well_id", tgt,'row_id'], axis=1)
     groups = df.loc[~df[tgt].isna(), 'well_id']
+    print(groups.unique())
     preds_holdout = np.ones((df.shape[0], 5))*(-50)
     cv= GroupKFold(n_splits)
 
@@ -38,8 +39,7 @@ def main(input_file_path, output_file_path, n_splits=5):
         X_train, X_holdout = X.iloc[train_index, :], X.iloc[test_index, :]
         model = LGBMClassifier(n_estimators=1500,
                                learning_rate=0.05,
-            objective="multiclassova",
-            is_unbalance=True,
+            objective="multiclass",
             random_state=k,
             n_jobs=-1,
 
