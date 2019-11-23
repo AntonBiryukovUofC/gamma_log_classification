@@ -20,7 +20,7 @@ def main(input_file_path, output_file_path, n_splits=5):
     input_file_name = os.path.join(input_file_path, "train.pck")
     #input_file_name_test = os.path.join(input_file_path, "Test_final.pck")
    # output_file_name = os.path.join(output_file_path, f"models_lgbm.pck")
-    df = pd.read_pickle(input_file_name)
+    df = pd.read_pickle(input_file_name).sample(frac=0.05)
 
     models = []
     scores = []
@@ -36,8 +36,8 @@ def main(input_file_path, output_file_path, n_splits=5):
     for k, (train_index, test_index) in enumerate(cv.split(X, y, groups)):
 
         X_train, X_holdout = X.iloc[train_index, :], X.iloc[test_index, :]
-        model = LGBMClassifier(n_estimators=500,
-                               learning_rate=0.1,
+        model = LGBMClassifier(n_estimators=1500,
+                               learning_rate=0.05,
             objective="multiclassova",
             is_unbalance=True,
             random_state=k,
@@ -50,7 +50,8 @@ def main(input_file_path, output_file_path, n_splits=5):
 
         model.fit(
             X_train,
-            y_train
+            y_train,
+            verbose=200
         )
         # model.fit(X_train, y_train)
         score = accuracy_score(y_holdout, model.predict(X_holdout))

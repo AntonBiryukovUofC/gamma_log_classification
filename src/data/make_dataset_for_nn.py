@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
+import pickle
+
 import pandas as pd
 import click
 import logging
@@ -10,6 +12,13 @@ import concurrent.futures
 from tqdm import tqdm
 from scipy.signal import medfilt
 
+
+def preprocess_a_well(df_well):
+    df_well['GR_medfilt'] = medfilt(df_well['GR'], 21)
+    x = df_well['GR_medfilt'].values
+    y = df_well['label'].values
+
+    return x, y
 
 
 def preprocess_dataset(df, n_wells=50):
@@ -24,19 +33,29 @@ def preprocess_dataset(df, n_wells=50):
     df_preprocessed.index = np.arange(df_preprocessed.shape[0])
     return df_preprocessed
 
+def to_ohe(x):
+    n_values = np.max(x) + 1
+    y = np.eye(n_values)[x]
+    return y
+
 
 def preprocess_dataset_parallel(df, n_wells=50):
     wells = df['well_id'].unique().tolist()[:n_wells]
     list_df_wells = [df.loc[df['well_id'].isin([w]), :].copy() for w in wells]
     for df in list_df_wells:
-        df.index=np.arange(df.shape[0])
+        df.index = np.arange(df.shape[0])
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers=12) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=10) as executor:
         results = list(tqdm(executor.map(preprocess_a_well, list_df_wells), total=len(list_df_wells)))
 
-    df_preprocessed = pd.concat(results, axis=0)
-    df_preprocessed.index = np.arange(df_preprocessed.shape[0])
-    return df_preprocessed
+    X = np.array([r[0] for r in results])
+    y = np.array([r[1] for r in results])
+    y = to_ohe(y)
+    X =np.reshape(X,(X.shape[0],X.shape[1],1))
+    print(X.shape)
+    print(y.shape)
+    data_dict = {'X': X, 'y': y}
+    return data_dict
 
 
 def main(input_filepath, output_filepath):
@@ -48,14 +67,16 @@ def main(input_filepath, output_filepath):
     df_train = pd.read_csv(os.path.join(input_filepath, 'train_lofi_rowid_Nov13.csv'))
     df_test = pd.read_csv(os.path.join(input_filepath, 'test_lofi_rowid_Nov13.csv'))
 
-    fname_final_train = os.path.join(output_filepath, 'train.pck')
+    fname_final_train = os.path.join(output_filepath, 'train_nn.pck')
 
     n_test = df_test['well_id'].unique().shape[0]
+    n_train = df_train['well_id'].unique().shape[0]
+    print(n_train)
+    data_dict = preprocess_dataset_parallel(df_train, n_wells=4000)
+    with open(fname_final_train, 'wb') as f:
+        pickle.dump(data_dict, f)
 
-    df_train_processed = preprocess_dataset_parallel(df_train, n_wells=75)
-    df_train_processed.to_pickle(fname_final_train)
-
-    #  fname_final_test = os.path.join(output_filepath, 'test.pck')
+    #  fname_final_test = os.path.join(output_filepath, 'test_nn.pck')
 
     # df_test_processed = preprocess_dataset_parallel(df_test, n_wells=n_test)
     # df_test_processed.to_pickle(fname_final_test)

@@ -136,7 +136,7 @@ def main(input_filepath, output_filepath):
 
     n_test = df_test['well_id'].unique().shape[0]
 
-    df_train_processed = preprocess_dataset_parallel(df_train, n_wells=75)
+    df_train_processed = preprocess_dataset_parallel(df_train, n_wells=300)
     df_train_processed.to_pickle(fname_final_train)
 
     #  fname_final_test = os.path.join(output_filepath, 'test.pck')
