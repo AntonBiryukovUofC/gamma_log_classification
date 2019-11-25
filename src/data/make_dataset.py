@@ -22,7 +22,7 @@ def divide_block(x):
         res[inds[i]:inds[i + 1]] = i
         counts[inds[i]:inds[i + 1]] = np.arange(inds[i + 1] - inds[i])
 
-    return res,counts
+    return res, counts
 
 
 def diff_sum(x):
@@ -84,14 +84,21 @@ def make_parabolic(w, amp=50):
 
 
 def corr_with_parabolic(x, y):
-    x = (x - x.mean()) / x.std()
-    y = (y - y.mean()) / y.std()
-    res = np.correlate(x, y).max()
+    if x.shape[0] == y.shape[0]:
+        res = np.corrcoef(x, y)[0, 1]
+    else:
+        res=np.nan
+    return res
+
+
+def corr_with_parabolic_grp(x):
+    y = make_parabolic(w=x.shape[0])
+    res = np.corrcoef(x, y)[0, 1]
     return res
 
 
 def value_middle_vs_ends(x):
-    x=np.array(x)
+    x = np.array(x)
     left = x[:2].mean()
     right = x[-2:].mean()
     mid = x[x.shape[0] // 2]
@@ -135,17 +142,18 @@ def apply_grouped_functions(df, col='GR', groups='grp',
 
     if func is None:
         func = {'mean': np.mean, 'std': np.std, 'diff_sum': diff_sum, 'abs_diff_sum': abs_diff_sum,
-                'slope': lambda x: rolling_slope(x)[0], 'mid_vs_end': value_middle_vs_ends, 'max_diff': diff_max, 'min_diff': diff_min,
+                'slope': lambda x: rolling_slope(x)[0], 'mid_vs_end': value_middle_vs_ends, 'max_diff': diff_max,
+                'min_diff': diff_min,
                 'half_slope': lambda x: half_rolling_slope(x)[0],
-                'corr_parabolic': lambda x: corr_with_parabolic(x,template),
+                'corr_parabolic': lambda x: corr_with_parabolic_grp(x),
                 'size': lambda x: x.shape[0]}
     names = []
     for k, v in func.items():
-        #series = df.groupby(groups)[col].transform(v)
+        # series = df.groupby(groups)[col].transform(v)
         colname = f'{col}_{k}'
-        #df.loc[:, colname] = series.values
+        # df.loc[:, colname] = series.values
         grouped_stats = df.groupby(groups)[col].apply(v)
-        grouped_stats_prev =df.groupby(groups)[col].apply(v).shift(1)
+        grouped_stats_prev = df.groupby(groups)[col].apply(v).shift(1)
         grouped_stats_next = df.groupby(groups)[col].apply(v).shift(-1)
         grouped_stats_diffp = grouped_stats - grouped_stats_prev
         grouped_stats_diffn = grouped_stats - grouped_stats_next
@@ -167,7 +175,7 @@ def preprocess_a_well(df_well):
     df_well['GR_medfilt'] = medfilt(df_well['GR'], 21)
     df_well['GR_diff'] = df_well['GR_medfilt'].diff()
     df_well['GR_shifted'] = df_well['GR_medfilt'].shift(100)
-    block,counts = divide_block(medfilt(df_well['GR'], 11))
+    block, counts = divide_block(medfilt(df_well['GR'], 11))
     df_well['block'] = block
     df_well['counts'] = counts
     # Add lag variables:
@@ -178,11 +186,11 @@ def preprocess_a_well(df_well):
     df_feats_wl = apply_rolling_functions(df_well.copy(), window=50, col='GR_medfilt')
     df_feats_wxl = apply_rolling_functions(df_well.copy(), window=120, col='GR_medfilt')
     df_feats_wl_right = apply_rolling_functions(df_well.copy(), window=100, col='GR_medfilt', center=False)
-    #df_feats_wl_right_shift = apply_rolling_functions(df_well.copy(), window=100, col='GR_shifted', center=False)
+    # df_feats_wl_right_shift = apply_rolling_functions(df_well.copy(), window=100, col='GR_shifted', center=False)
     df_feats_grouped = apply_grouped_functions(df_well.copy(), col='GR_medfilt', groups='block')
     # df_feats = pd.concat([df_well,df_lags,df_feats_ws, df_feats_wm, df_feats_wl,df_feats_wl_right,df_feats_wxl], axis=1)
     df_feats = pd.concat(
-        [df_well, df_lags, df_feats_ws, df_feats_wm, df_feats_wl, df_feats_wl_right,df_feats_wxl,
+        [df_well, df_lags, df_feats_ws, df_feats_wm, df_feats_wl, df_feats_wl_right, df_feats_wxl,
          df_feats_grouped], axis=1)
 
     return df_feats
@@ -237,8 +245,8 @@ def main(input_filepath, output_filepath):
 
     fname_final_test = os.path.join(output_filepath, 'test.pck')
 
-    #df_test_processed = preprocess_dataset_parallel(df_test, n_wells=n_test)
-    #df_test_processed.to_pickle(fname_final_test)
+    # df_test_processed = preprocess_dataset_parallel(df_test, n_wells=n_test)
+    # df_test_processed.to_pickle(fname_final_test)
 
 
 if __name__ == '__main__':

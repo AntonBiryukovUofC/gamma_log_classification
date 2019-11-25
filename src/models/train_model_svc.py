@@ -50,7 +50,7 @@ def main(input_file_path, output_file_path, n_splits=5):
     for k, (train_index, test_index) in enumerate(cv.split(X, y, groups)):
         X_train, X_holdout = X.iloc[train_index, :], X.iloc[test_index, :]
         model = make_pipeline(StandardScaler(),
-                              SVC(C=5e0,gamma='scale'))
+                              SVC(C=6e0,gamma='scale'))
 
         y_train, y_holdout = y.iloc[train_index], y.iloc[test_index]
 

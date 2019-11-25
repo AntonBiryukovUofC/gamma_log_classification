@@ -18,16 +18,14 @@ tgt='label'
 def main(input_file_path, output_file_path, n_splits=5):
     X=[]
     shifts = np.arange(-50,50,5)
-    for k in range(5):
-        input_file_name = os.path.join(input_file_path, "holdout_lgbm.pck")
-        df = pd.read_pickle(input_file_name)
-        grouped = df.groupby('well_id')
-        colnames = [f'label_{x}' for x in range(5)]
-        for s in shifts:
-            s_colnames = [f'{x}_{s}' for x in colnames]
-            df[s_colnames] = grouped[colnames].shift(s)
+    input_file_name = os.path.join(input_file_path, "holdout_lgbm.pck")
+    df = pd.read_pickle(input_file_name)
+    grouped = df.groupby('well_id')
+    colnames = [f'label_{x}' for x in range(5)]
+    for s in shifts:
+        s_colnames = [f'{x}_{s}' for x in colnames]
+        df[s_colnames] = grouped[colnames].shift(s)
         X.append(df.copy())
-    df = pd.concat(X,axis=0)
     models = []
     scores = []
     f1_scores = []

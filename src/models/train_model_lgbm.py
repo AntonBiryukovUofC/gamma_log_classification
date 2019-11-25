@@ -2,8 +2,10 @@ import logging
 import os
 from pathlib import Path
 
+import eli5
 import numpy as np
 import pandas as pd
+from eli5 import explain_weights
 from lightgbm import LGBMClassifier
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import GroupKFold
@@ -82,6 +84,8 @@ def main(input_file_path, output_file_path, n_splits=5):
         df_preds = pd.DataFrame(preds_holdout,columns = [f'label_{x}' for x in range(5)],index=df.index)
         df_preds = pd.concat([df,df_preds],axis = 1)
         df_preds['pred'] = np.argmax(preds_holdout,axis=1)
+        print(eli5.format_as_dataframe(explain_weights(model)))
+
     df_preds.to_pickle(os.path.join(interim_file_path,f'holdout_lgbm.pck'))
     logging.info(f" Holdout score = {np.mean(scores)} , std = {np.std(scores)}")
     logging.info(f" Holdout F1 score = {np.mean(f1_scores)} , std = {np.std(f1_scores)}")
@@ -91,6 +95,7 @@ def main(input_file_path, output_file_path, n_splits=5):
 
     preds_df = df_test[['row_id','well_id']]
     #preds_df['label'] = np.argmax(preds_test.sum(axis=0), axis=1)
+
     return preds_df
 
 if __name__ == "__main__":
