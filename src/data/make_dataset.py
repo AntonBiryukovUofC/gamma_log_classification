@@ -15,12 +15,14 @@ import ruptures as rpt
 def divide_block(x):
     algo = rpt.Pelt(model="rbf", min_size=5, jump=3).fit(x)
     inds = np.array(algo.predict(pen=5))
-
+    counts = np.zeros(x.shape[0])
+    counts[:inds[0]] = np.arange(inds[0])
     res = np.zeros(x.shape[0])
     for i in range(len(inds) - 1):
         res[inds[i]:inds[i + 1]] = i
+        counts[inds[i]:inds[i + 1]] = np.arange(inds[i + 1] - inds[i])
 
-    return res
+    return res,counts
 
 
 def diff_sum(x):
@@ -154,7 +156,9 @@ def preprocess_a_well(df_well):
     df_well['GR_medfilt'] = medfilt(df_well['GR'], 21)
     df_well['GR_diff'] = df_well['GR_medfilt'].diff()
     df_well['GR_shifted'] = df_well['GR_medfilt'].shift(100)
-    df_well['block'] = divide_block(medfilt(df_well['GR'], 11))
+    block,counts = divide_block(medfilt(df_well['GR'], 11))
+    df_well['block'] = block
+    df_well['counts'] = counts
     # Add lag variables:
     df_lags = calculate_lags(s=df_well['GR_medfilt'], note='GR_medfilt', lags=np.arange(-50, 50, 5))
 

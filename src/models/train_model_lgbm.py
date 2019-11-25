@@ -5,10 +5,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from lightgbm import LGBMClassifier
-from sklearn.decomposition import PCA
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import GroupKFold
-from sklearn.pipeline import make_pipeline
 
 project_dir = Path(__file__).resolve().parents[2]
 
@@ -44,25 +42,29 @@ def main(input_file_path, output_file_path, n_splits=5):
     for k, (train_index, test_index) in enumerate(cv.split(X, y, groups)):
 
         X_train, X_holdout = X.iloc[train_index, :], X.iloc[test_index, :]
-        model = make_pipeline(PCA(),LGBMClassifier(n_estimators=500,
+        model = LGBMClassifier(n_estimators=1800,
                                learning_rate=0.08,
                                feature_fraction=0.2,
-            objective="multiclassova",
+                               bagging_fraction = 0.6,
+            #objective="multiclassova",
             is_unbalance = True,
-            num_leaves=8,
+            num_leaves=16,
             random_state=k,
             n_jobs=-1,
-            #reg_alpha=30,
-            #reg_lambda=40
-        ))
+            reg_alpha=30,
+            reg_lambda=40,
+            class_weight='balanced'
+
+
+        )
 
         y_train, y_holdout = y.iloc[train_index], y.iloc[test_index]
 
         model.fit(
             X_train,
             y_train,
-            #verbose=200,
-            #eval_set=(X_holdout,y_holdout),
+            verbose=200,
+            eval_set=(X_holdout,y_holdout),
             #early_stopping_rounds=50,
 
         )
@@ -81,7 +83,7 @@ def main(input_file_path, output_file_path, n_splits=5):
         df_preds = pd.DataFrame(preds_holdout,columns = [f'label_{x}' for x in range(5)],index=df.index)
         df_preds = pd.concat([df,df_preds],axis = 1)
         df_preds['pred'] = np.argmax(preds_holdout,axis=1)
-        df_preds.to_pickle(os.path.join(interim_file_path,'holdout_lgbm.pck'))
+        df_preds.to_pickle(os.path.join(interim_file_path,f'holdout_lgbm_{k}.pck'))
     logging.info(f" Holdout score = {np.mean(scores)} , std = {np.std(scores)}")
     logging.info(f" Holdout F1 score = {np.mean(f1_scores)} , std = {np.std(f1_scores)}")
 
