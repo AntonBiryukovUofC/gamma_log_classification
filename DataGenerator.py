@@ -11,7 +11,6 @@ class DataGenerator:
                  train_name=TRAIN_NAME,
                  input_size = INPUT_SIZE,
                  target = TARGET,
-                 droplist = DROPLIST
                  ):
 
 
