@@ -5,26 +5,29 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from lightgbm import LGBMClassifier
-from sklearn.decomposition import PCA
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import GroupKFold
-from sklearn.pipeline import make_pipeline
 
 project_dir = Path(__file__).resolve().parents[2]
 
 log_fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_fmt)
 
-exclude_cols = ['row_id']
 tgt='label'
 
 def main(input_file_path, output_file_path, n_splits=5):
-    input_file_name = os.path.join(input_file_path, "train.pck")
-    input_file_name_test = os.path.join(input_file_path, "test.pck")
-   # output_file_name = os.path.join(output_file_path, f"models_lgbm.pck")
-    df = pd.read_pickle(input_file_name)
-    df_test = pd.read_pickle(input_file_name_test)
-
+    X=[]
+    shifts = np.arange(-50,50,5)
+    for k in range(5):
+        input_file_name = os.path.join(input_file_path, "holdout_lgbm.pck")
+        df = pd.read_pickle(input_file_name)
+        grouped = df.groupby('well_id')
+        colnames = [f'label_{x}' for x in range(5)]
+        for s in shifts:
+            s_colnames = [f'{x}_{s}' for x in colnames]
+            df[s_colnames] = grouped[colnames].shift(s)
+        X.append(df.copy())
+    df = pd.concat(X,axis=0)
     models = []
     scores = []
     f1_scores = []
@@ -32,39 +35,36 @@ def main(input_file_path, output_file_path, n_splits=5):
 
     y = df.loc[~df[tgt].isna(), tgt]
     X = df.loc[~df[tgt].isna(), :].drop(["well_id", tgt,'row_id'], axis=1)
-    X_test = df_test.drop(["well_id",'row_id'], axis=1)
 
     groups = df.loc[~df[tgt].isna(), 'well_id']
     print(groups.unique())
     preds_holdout = np.ones((df.shape[0], 5))*(-50)
-    preds_test = np.zeros((n_splits, df_test.shape[0], 5))
 
     cv= GroupKFold(n_splits)
 
     for k, (train_index, test_index) in enumerate(cv.split(X, y, groups)):
 
         X_train, X_holdout = X.iloc[train_index, :], X.iloc[test_index, :]
-        model = make_pipeline(PCA(),LGBMClassifier(n_estimators=500,
+        model = LGBMClassifier(n_estimators=500,
                                learning_rate=0.08,
-                               feature_fraction=0.2,
+                               feature_fraction=0.1,
             objective="multiclassova",
             is_unbalance = True,
-            num_leaves=8,
+            num_leaves=32,
             random_state=k,
             n_jobs=-1,
-            #reg_alpha=30,
-            #reg_lambda=40
-        ))
+
+
+        )
 
         y_train, y_holdout = y.iloc[train_index], y.iloc[test_index]
 
         model.fit(
             X_train,
             y_train,
-            #verbose=200,
+            verbose=200,
             #eval_set=(X_holdout,y_holdout),
-            #early_stopping_rounds=50,
-
+            #early_stopping_rounds=50
         )
         # model.fit(X_train, y_train)
         score = accuracy_score(y_holdout, model.predict(X_holdout))
@@ -81,7 +81,8 @@ def main(input_file_path, output_file_path, n_splits=5):
         df_preds = pd.DataFrame(preds_holdout,columns = [f'label_{x}' for x in range(5)],index=df.index)
         df_preds = pd.concat([df,df_preds],axis = 1)
         df_preds['pred'] = np.argmax(preds_holdout,axis=1)
-        df_preds.to_pickle(os.path.join(interim_file_path,'holdout_lgbm.pck'))
+        #df_preds.to_pickle(os.path.join(interim_file_path,f'holdout_lgbm_{k}.pck'))
+
     logging.info(f" Holdout score = {np.mean(scores)} , std = {np.std(scores)}")
     logging.info(f" Holdout F1 score = {np.mean(f1_scores)} , std = {np.std(f1_scores)}")
 
@@ -97,7 +98,7 @@ if __name__ == "__main__":
 
     # find .env automagically by walking up directories until it's found, then
     # load up the .env entries as environment variables
-    input_file_path = os.path.join(project_dir, "data", "processed")
+    input_file_path = os.path.join(project_dir, "data", "interim")
     output_file_path = os.path.join(project_dir, "models")
     os.makedirs(input_file_path, exist_ok=True)
     os.makedirs(output_file_path, exist_ok=True)
