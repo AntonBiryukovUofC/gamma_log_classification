@@ -1,6 +1,7 @@
 
 
 
+from model.VGG import *
 
 #model configs:
 
@@ -10,7 +11,7 @@ LR = 0.1
 LR_CUCLES = 5
 
 # early stopping settings
-DELTA = 0.001 # thresold of improvement
+MIN_DELTA = 0.001 # thresold of improvement
 PATIENCE = 10 # wait for 10 epoches for emprovement
 BATCH_SIZE = 512
 N_FOLD = 2 #number of folds for cross-validation
@@ -39,5 +40,3 @@ HYPERPARAM['n_filt_3'] = 128
 HYPERPARAM['kern_size_1'] = 4
 HYPERPARAM['kern_size_2'] = 8
 HYPERPARAM['kern_size_3'] = 16
-
-HYPERPARAM['dense_size'] = 300

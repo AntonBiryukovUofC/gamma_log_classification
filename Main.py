@@ -1,25 +1,27 @@
 #import modules
 from DataGenerator import *
-
+from Pipeline import *
+from model.config_VGG import *
 
 
 #create datasets
 GetData = DataGenerator()
 
 
-"""
-accuracy = CV_loop(GetData, noise=False)
+
+accuracy = Pipeline(VGG(input_size=INPUT_SIZE ,hyperparams=HYPERPARAM) )
 print('________________________________________')
-print('\n AUC_ROC score on test set without noise: ',wo_auc,'\n')
+print('\n Model accuracy: ',accuracy,'\n')
 print('________________________________________')
 
+os.system('dvc add ./data')
+os.system('git add .')
+os.system(f"git commit -m 'model , accuracy{accuracy}' ")
+
+
+
 
 """
-"""
-
-
-score  = CV_loop(GetData,noise=True) #find the initial score of the model
-
 for i in features:
 
     X_train = GetData.X_train[:,i,:].copy()
