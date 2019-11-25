@@ -42,12 +42,11 @@ def main(input_file_path, output_file_path, n_splits=5):
     for k, (train_index, test_index) in enumerate(cv.split(X, y, groups)):
 
         X_train, X_holdout = X.iloc[train_index, :], X.iloc[test_index, :]
-        model = LGBMClassifier(n_estimators=1800,
+        model = LGBMClassifier(n_estimators=1500,
                                learning_rate=0.08,
                                feature_fraction=0.2,
                                bagging_fraction = 0.6,
             #objective="multiclassova",
-            is_unbalance = True,
             num_leaves=16,
             random_state=k,
             n_jobs=-1,
@@ -83,16 +82,16 @@ def main(input_file_path, output_file_path, n_splits=5):
         df_preds = pd.DataFrame(preds_holdout,columns = [f'label_{x}' for x in range(5)],index=df.index)
         df_preds = pd.concat([df,df_preds],axis = 1)
         df_preds['pred'] = np.argmax(preds_holdout,axis=1)
-        df_preds.to_pickle(os.path.join(interim_file_path,f'holdout_lgbm_{k}.pck'))
+    df_preds.to_pickle(os.path.join(interim_file_path,f'holdout_lgbm.pck'))
     logging.info(f" Holdout score = {np.mean(scores)} , std = {np.std(scores)}")
     logging.info(f" Holdout F1 score = {np.mean(f1_scores)} , std = {np.std(f1_scores)}")
 
     logging.info(f" OOF Holdout score = {accuracy_score(y,np.argmax(preds_holdout,axis=1))} ")
     logging.info(f" OOF Holdout F1 score = {f1_score(y,np.argmax(preds_holdout,axis=1),labels = [1,2,3,4],average='weighted')}")
 
-   # preds_df = df_test[['row_id','well_id']]
-   # preds_df['label'] = np.argmax(preds_test.sum(axis=0), axis=1)
-    return 0
+    preds_df = df_test[['row_id','well_id']]
+    #preds_df['label'] = np.argmax(preds_test.sum(axis=0), axis=1)
+    return preds_df
 
 if __name__ == "__main__":
     # not used in this stub but often useful for finding various files
@@ -105,4 +104,4 @@ if __name__ == "__main__":
     os.makedirs(output_file_path, exist_ok=True)
 
     preds_test = main(input_file_path, output_file_path)
-   # preds_test.to_csv(os.path.join(input_file_path,'submit.csv'),index=False)
+    #preds_test.to_csv(os.path.join(input_file_path,'submit.csv'),index=False)

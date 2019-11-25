@@ -84,10 +84,9 @@ def make_parabolic(w, amp=50):
 
 
 def corr_with_parabolic(x, y):
-    if x.shape[0] == y.shape[0]:
-        res = np.correlate(x,y).max()
-    else:
-        res = np.nan
+    x = (x - x.mean()) / x.std()
+    y = (y - y.mean()) / y.std()
+    res = np.correlate(x, y).max()
     return res
 
 
@@ -145,8 +144,20 @@ def apply_grouped_functions(df, col='GR', groups='grp',
         #series = df.groupby(groups)[col].transform(v)
         colname = f'{col}_{k}'
         #df.loc[:, colname] = series.values
-        df = df.join(df.groupby(groups)[col].apply(v), on=groups, rsuffix=f'_{k}')
+        grouped_stats = df.groupby(groups)[col].apply(v)
+        grouped_stats_prev =df.groupby(groups)[col].apply(v).shift(1)
+        grouped_stats_next = df.groupby(groups)[col].apply(v).shift(-1)
+        grouped_stats_diffp = grouped_stats - grouped_stats_prev
+        grouped_stats_diffn = grouped_stats - grouped_stats_next
+
+        df = df.join(grouped_stats, on=groups, rsuffix=f'_{k}')
+        df = df.join(grouped_stats_diffp, on=groups, rsuffix=f'_{k}_dp')
+        df = df.join(grouped_stats_diffn, on=groups, rsuffix=f'_{k}_dn')
+
         names.append(colname)
+        names.append(f'{col}_{k}_dp')
+        names.append(f'{col}_{k}_dn')
+
     df[f'{col}_slopediff'] = df[f'{col}_slope'] - df[f'{col}_half_slope']
     df.index = np.arange(df.shape[0])
     return df[names]
@@ -165,13 +176,13 @@ def preprocess_a_well(df_well):
     df_feats_ws = apply_rolling_functions(df_well.copy(), window=10, col='GR_medfilt')
     df_feats_wm = apply_rolling_functions(df_well.copy(), window=20, col='GR_medfilt')
     df_feats_wl = apply_rolling_functions(df_well.copy(), window=50, col='GR_medfilt')
-    # df_feats_wxl = apply_rolling_functions(df_well.copy(), window=120, col='GR_medfilt')
+    df_feats_wxl = apply_rolling_functions(df_well.copy(), window=120, col='GR_medfilt')
     df_feats_wl_right = apply_rolling_functions(df_well.copy(), window=100, col='GR_medfilt', center=False)
     #df_feats_wl_right_shift = apply_rolling_functions(df_well.copy(), window=100, col='GR_shifted', center=False)
-    df_feats_grouped = apply_grouped_functions(df_well.copy(), col='GR', groups='block')
+    df_feats_grouped = apply_grouped_functions(df_well.copy(), col='GR_medfilt', groups='block')
     # df_feats = pd.concat([df_well,df_lags,df_feats_ws, df_feats_wm, df_feats_wl,df_feats_wl_right,df_feats_wxl], axis=1)
     df_feats = pd.concat(
-        [df_well, df_lags, df_feats_ws, df_feats_wm, df_feats_wl, df_feats_wl_right,
+        [df_well, df_lags, df_feats_ws, df_feats_wm, df_feats_wl, df_feats_wl_right,df_feats_wxl,
          df_feats_grouped], axis=1)
 
     return df_feats
@@ -224,10 +235,10 @@ def main(input_filepath, output_filepath):
     df_train_processed = preprocess_dataset_parallel(df_train, n_wells=100)
     df_train_processed.to_pickle(fname_final_train)
 
-    # fname_final_test = os.path.join(output_filepath, 'test.pck')
+    fname_final_test = os.path.join(output_filepath, 'test.pck')
 
-    # df_test_processed = preprocess_dataset_parallel(df_test, n_wells=n_test)
-    # df_test_processed.to_pickle(fname_final_test)
+    #df_test_processed = preprocess_dataset_parallel(df_test, n_wells=n_test)
+    #df_test_processed.to_pickle(fname_final_test)
 
 
 if __name__ == '__main__':
