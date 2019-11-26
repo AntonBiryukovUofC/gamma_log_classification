@@ -7,9 +7,53 @@ from pathlib import Path
 import numpy as np
 from sklearn.linear_model import LinearRegression
 import concurrent.futures
+
+from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 from scipy.signal import medfilt
 import ruptures as rpt
+from scipy.stats import mode
+
+
+def cut_window(data_cycle, overlap=0.8, base_length=96):
+    step = int((1 - overlap) * base_length)
+    n_windows = np.ceil((data_cycle.shape[0] - base_length) / step)
+    indexer = np.arange(base_length)[None, :] + step * np.arange(n_windows)[:, None]
+    return indexer.astype('int'), int(n_windows)
+
+
+def get_a_NN_object(df, n_wells_start, n_wells_end=2000, window_length=45):
+    df['GR_medfilt'] = medfilt(df['GR'], 31)
+    well_ids = df['well_id'].unique().tolist()[n_wells_start:(n_wells_start + n_wells_end)]
+    df_wells = df[df['well_id'].isin(well_ids)]
+    idxr, n_wins = cut_window(df_wells['GR_medfilt'], overlap=0.8, base_length=window_length)
+    windows = df_wells['GR_medfilt'].values[idxr]
+    labels = df_wells['label'].values[idxr]
+    NN = NearestNeighbors(n_neighbors=10, metric='braycurtis')
+    NN.fit(windows)
+    return NN, labels
+
+
+def augment_a_well_nearest_neighbors(df, NN, labels, bl=40):
+    df_tmp = df.copy()
+    df_tmp['GR_nn'] = medfilt(df['GR'], 31)
+    idxr, n_win = cut_window(df_tmp['GR_nn'].values, overlap=0.0, base_length=bl)
+    windows = df_tmp['GR_nn'].values[idxr]
+    dist, idw = NN.kneighbors(windows, n_neighbors=5)
+    dist_flip, idw_flip = NN.kneighbors(np.fliplr(windows), n_neighbors=5)
+
+    pred = mode(labels[idw, :], axis=1)[0]
+    pred = pred.reshape(pred.shape[0], pred.shape[2]).flatten()
+
+    pred_lr = mode(labels[idw_flip, :], axis=1)[0]
+    pred_lr = pred_lr.reshape(pred_lr.shape[0], pred_lr.shape[2])
+
+    df_labels_windows = pd.DataFrame(
+        {'row_id': idxr.flatten(), f'label_nn_{bl}': pred, f'flip_same_{bl}': np.equal(pred, pred_lr.flatten()),
+         f'same_after_inv_{bl}': np.equal(pred, np.fliplr(pred_lr).flatten())})
+    res = df_labels_windows.groupby('row_id').mean().reset_index()
+    res = df_tmp.join(res, on='row_id', rsuffix='_r').drop(columns=['row_id_r', 'GR_nn'])
+    return res
 
 
 def divide_block(x):
@@ -26,30 +70,42 @@ def divide_block(x):
 
 
 def diff_sum(x):
-    res = np.diff(x).sum()
+    if x.shape[0] > 1:
+        res = np.diff(x).sum()
+    else:
+        res=-99
     return res
 
 
 def diff_max(x):
-    res = np.nanmax(np.diff(x))
+    if x.shape[0]>1:
+        res = np.nanmax(np.diff(x))
+    else:
+        res=-99
     return res
 
 
 def diff_min(x):
-    res = np.nanmin(np.diff(x))
+    if x.shape[0] > 1:
+        res = np.nanmin(np.diff(x))
+    else:
+        res=-99
     return res
 
 
 def abs_diff_sum(x):
-    res = np.abs(np.diff(x)).sum()
+    if x.shape[0] > 1:
+        res = np.abs(np.diff(x)).sum()
+    else:
+        res=-99
     return res
 
 
 def rolling_slope(x):
     model_ols = LinearRegression()
     idx = np.arange(x.shape[0])
-    if np.isnan(x).sum() > 0:
-        res = np.nan
+    if np.isnan(x).sum() > 0 or (x.shape[0]<2) :
+        res = [np.nan]
     else:
         model_ols.fit(np.array(idx).reshape(-1, 1), np.array(x).reshape(-1, 1))
         res = model_ols.coef_[0]
@@ -59,17 +115,23 @@ def rolling_slope(x):
 def rolling_r2(x):
     model_ols = LinearRegression()
     idx = np.arange(x.shape[0])
-    model_ols.fit(idx.reshape(-1, 1), x.reshape(-1, 1))
-    res = model_ols.score(idx.reshape(-1, 1), x.reshape(-1, 1))
+    if (np.isnan(x).sum() > 0) or (x.shape[0]<2) :
+        res=np.nan
+    else:
+        model_ols.fit(idx.reshape(-1, 1), x.reshape(-1, 1))
+        res = model_ols.score(idx.reshape(-1, 1), x.reshape(-1, 1))
+
     return res
 
 
 def half_rolling_slope(x):
     model_ols = LinearRegression()
     idx = np.arange(max(x.shape[0] // 2, 1))
-
-    model_ols.fit(np.array(idx).reshape(-1, 1), np.array(x)[idx].reshape(-1, 1))
-    res = model_ols.coef_[0]
+    if (np.isnan(x).sum() > 0) or (x.shape[0]<2) :
+        res=[np.nan]
+    else:
+        model_ols.fit(np.array(idx).reshape(-1, 1), np.array(x)[idx].reshape(-1, 1))
+        res = model_ols.coef_[0]
     return res
 
 
@@ -87,13 +149,17 @@ def corr_with_parabolic(x, y):
     if x.shape[0] == y.shape[0]:
         res = np.corrcoef(x, y)[0, 1]
     else:
-        res=np.nan
+        res = np.nan
     return res
 
 
 def corr_with_parabolic_grp(x):
-    y = make_parabolic(w=x.shape[0])
-    res = np.corrcoef(x, y)[0, 1]
+    if x.shape[0] > 3:
+
+        y = make_parabolic(w=x.shape[0])
+        res = np.corrcoef(x, y)[0, 1]
+    else:
+        res=np.nan
     return res
 
 
@@ -171,15 +237,21 @@ def apply_grouped_functions(df, col='GR', groups='grp',
     return df[names]
 
 
-def preprocess_a_well(df_well):
+def preprocess_a_well(df_well, windows=[15, 30, 65]):
     df_well['GR_medfilt'] = medfilt(df_well['GR'], 21)
     df_well['GR_diff'] = df_well['GR_medfilt'].diff()
     df_well['GR_shifted'] = df_well['GR_medfilt'].shift(100)
     block, counts = divide_block(medfilt(df_well['GR'], 11))
+    df_well['grp'] = (df_well[f'label_nn_{windows[0]}'] != df_well[f'label_nn_{windows[0]}'].shift(1)).cumsum().fillna('pad')
     df_well['block'] = block
     df_well['counts'] = counts
     # Add lag variables:
     df_lags = calculate_lags(s=df_well['GR_medfilt'], note='GR_medfilt', lags=np.arange(-50, 50, 5))
+
+    label_lags = []
+    for w in windows:
+        df_label_lags = calculate_lags(s=df_well[f'label_nn_{w}'], note=f'label_nn_{w}', lags=np.arange(-50, 50, 5))
+        label_lags.append(df_label_lags.copy())
 
     df_feats_ws = apply_rolling_functions(df_well.copy(), window=10, col='GR_medfilt')
     df_feats_wm = apply_rolling_functions(df_well.copy(), window=20, col='GR_medfilt')
@@ -187,25 +259,29 @@ def preprocess_a_well(df_well):
     df_feats_wxl = apply_rolling_functions(df_well.copy(), window=120, col='GR_medfilt')
     df_feats_wl_right = apply_rolling_functions(df_well.copy(), window=100, col='GR_medfilt', center=False)
     # df_feats_wl_right_shift = apply_rolling_functions(df_well.copy(), window=100, col='GR_shifted', center=False)
-    df_feats_grouped = apply_grouped_functions(df_well.copy(), col='GR_medfilt', groups='block')
+    df_feats_grouped = apply_grouped_functions(df_well.copy(), col='GR_medfilt', groups='grp')
     # df_feats = pd.concat([df_well,df_lags,df_feats_ws, df_feats_wm, df_feats_wl,df_feats_wl_right,df_feats_wxl], axis=1)
     df_feats = pd.concat(
         [df_well, df_lags, df_feats_ws, df_feats_wm, df_feats_wl, df_feats_wl_right, df_feats_wxl,
-         df_feats_grouped], axis=1)
+         df_feats_grouped] + label_lags, axis=1)
 
     return df_feats
 
 
-def preprocess_dataset(df, n_wells=50):
+def preprocess_dataset(df, n_wells=50, NN_list=[], labels_list=[]):
     df_well_list = []
     wells = df['well_id'].unique().tolist()[:n_wells]
     list_df_wells = [df.loc[df['well_id'].isin([w]), :].copy() for w in wells]
     for df in list_df_wells:
         df.index = np.arange(df.shape[0])
 
+    for NN, labels in zip(NN_list, labels_list):
+        for i, df in enumerate(list_df_wells):
+            tmp = augment_a_well_nearest_neighbors(df, NN, labels, bl=labels.shape[1])
+            list_df_wells[i] = tmp
     for w in tqdm(list_df_wells):
         df_well = w
-        df_new = preprocess_a_well(df_well.copy())
+        df_new = preprocess_a_well(df_well.copy(),windows=[15])
         df_well_list.append(df_new.copy())
 
     df_preprocessed = pd.concat(df_well_list, axis=0)
@@ -213,11 +289,16 @@ def preprocess_dataset(df, n_wells=50):
     return df_preprocessed
 
 
-def preprocess_dataset_parallel(df, n_wells=50):
+def preprocess_dataset_parallel(df, n_wells=50, NN_list=[], labels_list=[]):
     wells = df['well_id'].unique().tolist()[:n_wells]
     list_df_wells = [df.loc[df['well_id'].isin([w]), :].copy() for w in wells]
     for df in list_df_wells:
         df.index = np.arange(df.shape[0])
+
+    for NN, labels in zip(NN_list, labels_list):
+        for i, df in enumerate(list_df_wells):
+            tmp = augment_a_well_nearest_neighbors(df, NN, labels, bl=labels.shape[1])
+            list_df_wells[i] = tmp
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
         results = list(tqdm(executor.map(preprocess_a_well, list_df_wells), total=len(list_df_wells)))
@@ -239,13 +320,21 @@ def main(input_filepath, output_filepath):
     fname_final_train = os.path.join(output_filepath, 'train.pck')
 
     n_test = df_test['well_id'].unique().shape[0]
+    n_wells = 400
+    NN_l, labels_l = get_a_NN_object(df_train, n_wells,n_wells_end=800, window_length=65)
+    NN_m, labels_m = get_a_NN_object(df_train, 1200,800, window_length=30)
+    NN_s, labels_s = get_a_NN_object(df_train, 2000,800, window_length=15)
 
-    df_train_processed = preprocess_dataset_parallel(df_train, n_wells=100)
+    df_train_processed = preprocess_dataset_parallel(df_train, n_wells=n_wells, NN_list=[NN_l, NN_m, NN_s],
+                                                     labels_list=[labels_l, labels_m, labels_s])
+    #df_train_processed = preprocess_dataset(df_train, n_wells=n_wells, NN_list=[NN_s],
+    #                                                  labels_list=[labels_s])
+
     df_train_processed.to_pickle(fname_final_train)
 
     fname_final_test = os.path.join(output_filepath, 'test.pck')
 
-    # df_test_processed = preprocess_dataset_parallel(df_test, n_wells=n_test)
+    # df_test_processed = preprocess_dataset_parallel(df_test, n_wells=n_test, NN=NN, labels=labels)
     # df_test_processed.to_pickle(fname_final_test)
 
 

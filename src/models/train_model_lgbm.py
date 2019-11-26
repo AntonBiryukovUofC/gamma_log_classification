@@ -18,6 +18,8 @@ logging.basicConfig(level=logging.INFO, format=log_fmt)
 exclude_cols = ['row_id']
 tgt='label'
 
+cols = ['flip_same_65', 'same_after_inv_65', 'flip_same_30', 'same_after_inv_30', 'flip_same_15', 'same_after_inv_15']
+
 def main(input_file_path, output_file_path, n_splits=5):
     input_file_name = os.path.join(input_file_path, "train.pck")
     input_file_name_test = os.path.join(input_file_path, "test.pck")
@@ -32,6 +34,8 @@ def main(input_file_path, output_file_path, n_splits=5):
 
     y = df.loc[~df[tgt].isna(), tgt]
     X = df.loc[~df[tgt].isna(), :].drop(["well_id", tgt,'row_id'], axis=1)
+    for c in cols:
+        X[c] = pd.to_numeric(X[c])
     X_test = df_test.drop(["well_id",'row_id'], axis=1)
 
     groups = df.loc[~df[tgt].isna(), 'well_id']
@@ -44,6 +48,9 @@ def main(input_file_path, output_file_path, n_splits=5):
     for k, (train_index, test_index) in enumerate(cv.split(X, y, groups)):
 
         X_train, X_holdout = X.iloc[train_index, :], X.iloc[test_index, :]
+
+
+
         model = LGBMClassifier(n_estimators=1500,
                                learning_rate=0.08,
                                feature_fraction=0.2,
@@ -66,7 +73,7 @@ def main(input_file_path, output_file_path, n_splits=5):
             y_train,
             verbose=200,
             eval_set=(X_holdout,y_holdout),
-            #early_stopping_rounds=50,
+            #early_stopping_rounds=150,
 
         )
         # model.fit(X_train, y_train)
@@ -84,7 +91,7 @@ def main(input_file_path, output_file_path, n_splits=5):
         df_preds = pd.DataFrame(preds_holdout,columns = [f'label_{x}' for x in range(5)],index=df.index)
         df_preds = pd.concat([df,df_preds],axis = 1)
         df_preds['pred'] = np.argmax(preds_holdout,axis=1)
-        print(eli5.format_as_dataframe(explain_weights(model)))
+        print(eli5.format_as_dataframe(explain_weights(model)).head(50))
 
     df_preds.to_pickle(os.path.join(interim_file_path,f'holdout_lgbm.pck'))
     logging.info(f" Holdout score = {np.mean(scores)} , std = {np.std(scores)}")
@@ -109,4 +116,4 @@ if __name__ == "__main__":
     os.makedirs(output_file_path, exist_ok=True)
 
     preds_test = main(input_file_path, output_file_path)
-    #preds_test.to_csv(os.path.join(input_file_path,'submit.csv'),index=False)
+    preds_test.to_csv(os.path.join(input_file_path,'submit.csv'),index=False)
