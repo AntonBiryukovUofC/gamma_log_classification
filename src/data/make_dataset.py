@@ -23,7 +23,7 @@ def cut_window(data_cycle, overlap=0.8, base_length=96):
 
 
 def get_a_NN_object(df, n_wells_start, n_wells_end=2000, window_length=45):
-    df['GR_medfilt'] = medfilt(df['GR'], 31)
+    df['GR_medfilt'] = medfilt(df['GR'], 11)
     well_ids = df['well_id'].unique().tolist()[n_wells_start:(n_wells_start + n_wells_end)]
     df_wells = df[df['well_id'].isin(well_ids)]
     idxr, n_wins = cut_window(df_wells['GR_medfilt'], overlap=0.8, base_length=window_length)
@@ -36,7 +36,7 @@ def get_a_NN_object(df, n_wells_start, n_wells_end=2000, window_length=45):
 
 def augment_a_well_nearest_neighbors(df, NN, labels, bl=40):
     df_tmp = df.copy()
-    df_tmp['GR_nn'] = medfilt(df['GR'], 31)
+    df_tmp['GR_nn'] = medfilt(df['GR'], 11)
     idxr, n_win = cut_window(df_tmp['GR_nn'].values, overlap=0.0, base_length=bl)
     windows = df_tmp['GR_nn'].values[idxr]
     dist, idw = NN.kneighbors(windows, n_neighbors=5)
@@ -238,7 +238,7 @@ def apply_grouped_functions(df, col='GR', groups='grp',
 
 
 def preprocess_a_well(df_well, windows=[15, 30, 65]):
-    df_well['GR_medfilt'] = medfilt(df_well['GR'], 21)
+    df_well['GR_medfilt'] = medfilt(df_well['GR'], 11)
     df_well['GR_diff'] = df_well['GR_medfilt'].diff()
     df_well['GR_shifted'] = df_well['GR_medfilt'].shift(100)
     block, counts = divide_block(medfilt(df_well['GR'], 11))
@@ -320,10 +320,10 @@ def main(input_filepath, output_filepath):
     fname_final_train = os.path.join(output_filepath, 'train.pck')
 
     n_test = df_test['well_id'].unique().shape[0]
-    n_wells = 400
-    NN_l, labels_l = get_a_NN_object(df_train, n_wells,n_wells_end=800, window_length=65)
-    NN_m, labels_m = get_a_NN_object(df_train, 1200,800, window_length=30)
-    NN_s, labels_s = get_a_NN_object(df_train, 2000,800, window_length=15)
+    n_wells = 200
+    NN_l, labels_l = get_a_NN_object(df_train, n_wells,n_wells_end=400, window_length=65)
+    NN_m, labels_m = get_a_NN_object(df_train, 400,800, window_length=30)
+    NN_s, labels_s = get_a_NN_object(df_train, 800,1200, window_length=15)
 
     df_train_processed = preprocess_dataset_parallel(df_train, n_wells=n_wells, NN_list=[NN_l, NN_m, NN_s],
                                                      labels_list=[labels_l, labels_m, labels_s])
