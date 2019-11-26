@@ -55,12 +55,12 @@ def main(input_file_path, output_file_path, n_splits=5):
                                learning_rate=0.08,
                                feature_fraction=0.2,
                                bagging_fraction = 0.6,
-            #objective="multiclassova",
+            ##objective="multiclassova",
             num_leaves=16,
             random_state=k,
             n_jobs=-1,
-            reg_alpha=30,
-            reg_lambda=40,
+            reg_alpha=10,
+            reg_lambda=10,
             class_weight='balanced'
 
 

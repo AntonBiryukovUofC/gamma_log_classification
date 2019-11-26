@@ -239,7 +239,13 @@ def apply_grouped_functions(df, col='GR', groups='grp',
 
 def preprocess_a_well(df_well, windows=[15, 30, 65]):
     df_well['GR_medfilt'] = medfilt(df_well['GR'], 11)
+    df_well['GR_medfilt_s'] = medfilt(df_well['GR'], 3)
+
     df_well['GR_diff'] = df_well['GR_medfilt'].diff()
+    df_well['GR_diff_scale'] = df_well['GR_medfilt'] - df_well['GR_medfilt_s']
+
+    df_well['grdiff'] = df_well['GR_medfilt'] - medfilt(df_well['GR'], 3)
+
     df_well['GR_shifted'] = df_well['GR_medfilt'].shift(100)
     block, counts = divide_block(medfilt(df_well['GR'], 11))
     df_well['grp'] = (df_well[f'label_nn_{windows[0]}'] != df_well[f'label_nn_{windows[0]}'].shift(1)).cumsum().fillna('pad')
@@ -260,10 +266,16 @@ def preprocess_a_well(df_well, windows=[15, 30, 65]):
     df_feats_wl_right = apply_rolling_functions(df_well.copy(), window=100, col='GR_medfilt', center=False)
     # df_feats_wl_right_shift = apply_rolling_functions(df_well.copy(), window=100, col='GR_shifted', center=False)
     df_feats_grouped = apply_grouped_functions(df_well.copy(), col='GR_medfilt', groups='grp')
+
+    # Smaller scale features:
+    df_feats_small_scale_ws = apply_rolling_functions(df_well.copy(), window=11, col='GR_medfilt_s')
+    df_feats_small_scale_wm = apply_rolling_functions(df_well.copy(), window=21, col='GR_medfilt_s')
+    df_feats_grouped_small_scale = apply_grouped_functions(df_well.copy(), col='GR_medfilt_s', groups='grp')
+
     # df_feats = pd.concat([df_well,df_lags,df_feats_ws, df_feats_wm, df_feats_wl,df_feats_wl_right,df_feats_wxl], axis=1)
     df_feats = pd.concat(
         [df_well, df_lags, df_feats_ws, df_feats_wm, df_feats_wl, df_feats_wl_right, df_feats_wxl,
-         df_feats_grouped] + label_lags, axis=1)
+         df_feats_grouped,df_feats_small_scale_wm,df_feats_small_scale_ws,df_feats_grouped_small_scale] + label_lags, axis=1)
 
     return df_feats
 
