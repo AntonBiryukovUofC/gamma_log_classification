@@ -101,7 +101,7 @@ def divide_block_steps(df, t=24):
     df['count_step'] = counts
     df['count_groups'] = res
     df['count_step_norm'] = df['count_step'] / df.groupby('count_groups')['count_step'].transform('max')
-    df.drop(columns=['step'],inplace=True)
+    df.drop(columns=['step'], inplace=True)
     return df
 
 
@@ -111,7 +111,6 @@ def diff_sum(x):
     else:
         res = -99
     return res
-
 
 
 def diff_max(x):
@@ -138,19 +137,21 @@ def abs_diff_sum(x):
     return res
 
 
-def abs_diff_exceed_count(x,t=24):
+def abs_diff_exceed_count(x, t=24):
     if x.shape[0] > 1:
         res = (np.abs(np.diff(x)) > t).sum()
     else:
         res = -99
     return res
 
+
 def calculate_acf(x):
     if x.shape[0] > 2:
-        res = np.mean(acf(x,fft=False)[1:])
+        res = np.mean(acf(x, fft=False)[1:])
     else:
         res = -99
     return res
+
 
 def rolling_slope(x):
     model_ols = LinearRegression()
@@ -171,9 +172,9 @@ def acf_residuals(x):
     else:
         model_ols.fit(idx.reshape(-1, 1), np.array(x).reshape(-1, 1))
         resid = model_ols.predict(idx.reshape(-1, 1)) - np.array(x).reshape(-1, 1)
-        acf_resid = acf(resid.flatten(),fft=False)[1:]
-        #thresholds =
-        #num_thresh = np.abs(acf_resid) > (np.range(acf_resid.shape[0])+1)
+        acf_resid = acf(resid.flatten(), fft=False)[1:]
+        # thresholds =
+        # num_thresh = np.abs(acf_resid) > (np.range(acf_resid.shape[0])+1)
         res = acf_resid.mean()
 
     return res
@@ -258,7 +259,8 @@ def apply_rolling_functions(df, col='GR', window=10,
         func = {'mean': np.mean, 'std': np.std, 'diff_sum': diff_sum, 'abs_diff_sum': abs_diff_sum,
                 'corr_parabolic': lambda x: corr_with_parabolic(x, template),
                 'slope': rolling_slope, 'mid_vs_end': value_middle_vs_ends, 'max_diff': diff_max, 'min_diff': diff_min,
-                'kurtosis': kurtosis,'abs_diff_exceed_count':abs_diff_exceed_count,'acf':calculate_acf,'acf_resid':acf_residuals}
+                'kurtosis': kurtosis, 'abs_diff_exceed_count': abs_diff_exceed_count, 'acf': calculate_acf,
+                'acf_resid': acf_residuals}
     names = []
     for k, v in func.items():
         series = df.loc[:, col].rolling(window=window, center=center, min_periods=window // 2).apply(v, raw=True)
@@ -280,8 +282,8 @@ def apply_grouped_functions(df, col='GR', groups='grp',
                 'min_diff': diff_min,
                 'half_slope': lambda x: half_rolling_slope(x)[0],
                 'corr_parabolic': lambda x: corr_with_parabolic_grp(x),
-                'size': lambda x: x.shape[0], 'kurtosis': kurtosis,'abs_diff_exceed_count':abs_diff_exceed_count,
-                'acf':calculate_acf,'acf_resid':acf_residuals}
+                'size': lambda x: x.shape[0], 'kurtosis': kurtosis, 'abs_diff_exceed_count': abs_diff_exceed_count,
+                'acf': calculate_acf, 'acf_resid': acf_residuals}
     names = []
     for k, v in func.items():
         # series = df.groupby(groups)[col].transform(v)
@@ -314,8 +316,10 @@ def preprocess_a_well(df_well, windows=[15, 30, 65]):
     df_well['GR_diff_scale_large'] = medfilt(df_well['GR'], 3) - medfilt(df_well['GR_medfilt'], 31)
     df_well['GR_shifted'] = df_well['GR_medfilt'].shift(100)
     df_well['GR_resid'] = df_well['GR'] - df_well['GR_medfilt']
+    df_well['GR_resid_s'] = df_well['GR'] - df_well['GR_medfilt']
+
     # Calculate derivatives:
-    df_well = calculate_derivatives(df_well,order=2,cols=['GR_medfilt','GR_medfilt_s','GR'])
+    df_well = calculate_derivatives(df_well, order=2, cols=['GR_medfilt', 'GR_medfilt_s', 'GR'])
     df_well = calculate_derivatives(df_well, order=3, cols=['GR_medfilt', 'GR_medfilt_s', 'GR'])
 
     block, counts = divide_block(medfilt(df_well['GR'], 11))
@@ -324,7 +328,7 @@ def preprocess_a_well(df_well, windows=[15, 30, 65]):
     df_well['block'] = block
     df_well['counts'] = counts
     # Divide by quick changes in GR:
-    df_well=divide_block_steps(df_well,20)
+    df_well = divide_block_steps(df_well, 20)
 
     # Add lag variables:
     df_lags = calculate_lags(s=df_well['GR_medfilt'], note='GR_medfilt', lags=np.arange(-50, 50, 5))
@@ -334,10 +338,19 @@ def preprocess_a_well(df_well, windows=[15, 30, 65]):
         df_label_lags = calculate_lags(s=df_well[f'label_nn_{w}'], note=f'label_nn_{w}', lags=np.arange(-50, 50, 5))
         label_lags.append(df_label_lags.copy())
     df_feats_wxs = apply_rolling_functions(df_well.copy(), window=5, col='GR_medfilt')
-
     df_feats_ws = apply_rolling_functions(df_well.copy(), window=10, col='GR_medfilt')
     df_feats_wm = apply_rolling_functions(df_well.copy(), window=20, col='GR_medfilt')
     df_feats_wl = apply_rolling_functions(df_well.copy(), window=50, col='GR_medfilt')
+
+    df_feats_wxs_resid = apply_rolling_functions(df_well.copy(), window=5, col='resid')
+    df_feats_ws_resid = apply_rolling_functions(df_well.copy(), window=10, col='resid')
+    df_feats_wl_resid = apply_rolling_functions(df_well.copy(), window=50, col='resid')
+    df_feats_grouped_small_scale_resid = apply_grouped_functions(df_well.copy(), col='resid', groups='grp')
+    df_feats_grouped_GR_changes_resid = apply_grouped_functions(df_well.copy(), col='resid', groups='count_groups')
+
+    resid_list = [df_feats_wxs_resid, df_feats_ws_resid, df_feats_wl_resid, df_feats_grouped_small_scale_resid,
+                  df_feats_grouped_GR_changes_resid]
+
     df_feats_wxl = apply_rolling_functions(df_well.copy(), window=120, col='GR_medfilt')
     df_feats_wl_right = apply_rolling_functions(df_well.copy(), window=100, col='GR_medfilt', center=False)
     # df_feats_wl_right_shift = apply_rolling_functions(df_well.copy(), window=100, col='GR_shifted', center=False)
@@ -349,14 +362,11 @@ def preprocess_a_well(df_well, windows=[15, 30, 65]):
     df_feats_grouped_small_scale = apply_grouped_functions(df_well.copy(), col='GR_medfilt_s', groups='grp')
     df_feats_grouped_GR_changes = apply_grouped_functions(df_well.copy(), col='GR', groups='count_groups')
 
-
-
     # df_feats = pd.concat([df_well,df_lags,df_feats_ws, df_feats_wm, df_feats_wl,df_feats_wl_right,df_feats_wxl], axis=1)
     df_feats = pd.concat(
         [df_well, df_lags, df_feats_wxs, df_feats_ws, df_feats_wm, df_feats_wl, df_feats_wl_right, df_feats_wxl,
          df_feats_grouped, df_feats_small_scale_wm, df_feats_small_scale_ws, df_feats_grouped_small_scale,
-         df_feats_small_scale_wxs,df_feats_grouped_GR_changes] + label_lags, axis=1)
-
+         df_feats_small_scale_wxs, df_feats_grouped_GR_changes] + label_lags, axis=1)
 
     return df_feats
 
@@ -415,7 +425,7 @@ def main(input_filepath, output_filepath):
     n_test = df_test['well_id'].unique().shape[0]
 
     # Scale the data:
-    #df_train['GR'] = (df_train['GR'] - df_train['GR'].mean()) / df_train['GR'].std()
+    # df_train['GR'] = (df_train['GR'] - df_train['GR'].mean()) / df_train['GR'].std()
 
     n_wells = 200
     NN_l, labels_l = get_a_NN_object(df_train, n_wells, n_wells_end=400, window_length=65)
