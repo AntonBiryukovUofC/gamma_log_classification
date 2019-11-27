@@ -15,6 +15,9 @@ logging.basicConfig(level=logging.INFO, format=log_fmt)
 
 exclude_cols = ['row_id']
 tgt='label'
+cols = ['flip_same_65', 'same_after_inv_65', 'flip_same_30', 'same_after_inv_30', 'flip_same_15', 'same_after_inv_15']
+
+
 
 def main(input_file_path, output_file_path, n_splits=5):
     input_file_name = os.path.join(input_file_path, "train.pck")
@@ -30,6 +33,8 @@ def main(input_file_path, output_file_path, n_splits=5):
 
     y = df.loc[~df[tgt].isna(), tgt]
     X = df.loc[~df[tgt].isna(), :].drop(["well_id", tgt,'row_id'], axis=1)
+    for c in cols:
+        X[c] = pd.to_numeric(X[c])
     X_test = df_test.drop(["well_id",'row_id'], axis=1)
 
     groups = df.loc[~df[tgt].isna(), 'well_id']
@@ -45,9 +50,9 @@ def main(input_file_path, output_file_path, n_splits=5):
         model = LGBMClassifier(n_estimators=500,
                                learning_rate=0.08,
                                feature_fraction=0.2,
-            objective="multiclassova",
+            #objective="multiclassova",
             is_unbalance = True,
-            num_leaves=8,
+            num_leaves=16,
             random_state=k,
             n_jobs=-1,
 

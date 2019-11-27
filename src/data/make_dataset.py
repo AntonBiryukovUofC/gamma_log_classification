@@ -12,7 +12,16 @@ from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 from scipy.signal import medfilt
 import ruptures as rpt
-from scipy.stats import mode
+from scipy.stats import mode, kurtosis
+
+
+def calculate_derivatives(df, order=1, cols=['A', 'B']):
+    for c in cols:
+        colname = f'{c}_{order}'
+        df[colname] = df[c].values
+        for i in range(order):
+            df[colname] = df[colname].diff()
+    return df
 
 
 def cut_window(data_cycle, overlap=0.8, base_length=96):
@@ -22,8 +31,8 @@ def cut_window(data_cycle, overlap=0.8, base_length=96):
     return indexer.astype('int'), int(n_windows)
 
 
-def get_a_NN_object(df, n_wells_start, n_wells_end=2000, window_length=45):
-    df['GR_medfilt'] = medfilt(df['GR'], 11)
+def get_a_NN_object(df, n_wells_start, n_wells_end=2000, window_length=45, kernel_size=11):
+    df['GR_medfilt'] = medfilt(df['GR'], kernel_size)
     well_ids = df['well_id'].unique().tolist()[n_wells_start:(n_wells_start + n_wells_end)]
     df_wells = df[df['well_id'].isin(well_ids)]
     idxr, n_wins = cut_window(df_wells['GR_medfilt'], overlap=0.8, base_length=window_length)
@@ -34,9 +43,9 @@ def get_a_NN_object(df, n_wells_start, n_wells_end=2000, window_length=45):
     return NN, labels
 
 
-def augment_a_well_nearest_neighbors(df, NN, labels, bl=40):
+def augment_a_well_nearest_neighbors(df, NN, labels, bl=40, kernel_size=11):
     df_tmp = df.copy()
-    df_tmp['GR_nn'] = medfilt(df['GR'], 11)
+    df_tmp['GR_nn'] = medfilt(df['GR'], kernel_size)
     idxr, n_win = cut_window(df_tmp['GR_nn'].values, overlap=0.0, base_length=bl)
     windows = df_tmp['GR_nn'].values[idxr]
     dist, idw = NN.kneighbors(windows, n_neighbors=5)
@@ -69,19 +78,46 @@ def divide_block(x):
     return res, counts
 
 
+def divide_block_steps(df, t=24):
+    df['step'] = (df['GR'].diff().abs() >= t)
+    df_steps = df[df['step']]
+    inds = np.hstack([0, np.array(df_steps['row_id']), df['row_id'].max() + 1])
+    counts = np.zeros(df.shape[0])
+    counts[:inds[0]] = np.arange(inds[0])
+    res = np.zeros(df.shape[0])
+    for i in range(len(inds) - 1):
+        res[inds[i]:inds[i + 1]] = i
+        counts[inds[i]:inds[i + 1]] = np.arange(inds[i + 1] - inds[i])
+
+    df['prev_val_step'] = np.nan
+    df.loc[df['step'], 'prev_val_step'] = df['GR'].diff()
+    df['prev_val_step'] = df['prev_val_step'].fillna(method='ffill').astype('float')
+
+    df['next_val_step'] = np.nan
+    df.loc[df['step'], 'next_val_step'] = df['GR'].diff()
+    df['next_val_step'] = df['next_val_step'].fillna(method='bfill').astype('float')
+
+    df['count_step'] = counts
+    df['count_groups'] = res
+    df['count_step_norm'] = df['count_step'] / df.groupby('count_groups')['count_step'].transform('max')
+    df.drop(columns=['step'],inplace=True)
+    return df
+
+
 def diff_sum(x):
     if x.shape[0] > 1:
         res = np.diff(x).sum()
     else:
-        res=-99
+        res = -99
     return res
 
 
+
 def diff_max(x):
-    if x.shape[0]>1:
+    if x.shape[0] > 1:
         res = np.nanmax(np.diff(x))
     else:
-        res=-99
+        res = -99
     return res
 
 
@@ -89,7 +125,7 @@ def diff_min(x):
     if x.shape[0] > 1:
         res = np.nanmin(np.diff(x))
     else:
-        res=-99
+        res = -99
     return res
 
 
@@ -97,14 +133,23 @@ def abs_diff_sum(x):
     if x.shape[0] > 1:
         res = np.abs(np.diff(x)).sum()
     else:
-        res=-99
+        res = -99
     return res
+
+
+def abs_diff_exceed_count(x,t=24):
+    if x.shape[0] > 1:
+        res = (np.abs(np.diff(x)) > t).sum()
+    else:
+        res = -99
+    return res
+
 
 
 def rolling_slope(x):
     model_ols = LinearRegression()
     idx = np.arange(x.shape[0])
-    if np.isnan(x).sum() > 0 or (x.shape[0]<2) :
+    if np.isnan(x).sum() > 0 or (x.shape[0] < 2):
         res = [np.nan]
     else:
         model_ols.fit(np.array(idx).reshape(-1, 1), np.array(x).reshape(-1, 1))
@@ -115,8 +160,8 @@ def rolling_slope(x):
 def rolling_r2(x):
     model_ols = LinearRegression()
     idx = np.arange(x.shape[0])
-    if (np.isnan(x).sum() > 0) or (x.shape[0]<2) :
-        res=np.nan
+    if (np.isnan(x).sum() > 0) or (x.shape[0] < 2):
+        res = np.nan
     else:
         model_ols.fit(idx.reshape(-1, 1), x.reshape(-1, 1))
         res = model_ols.score(idx.reshape(-1, 1), x.reshape(-1, 1))
@@ -127,8 +172,8 @@ def rolling_r2(x):
 def half_rolling_slope(x):
     model_ols = LinearRegression()
     idx = np.arange(max(x.shape[0] // 2, 1))
-    if (np.isnan(x).sum() > 0) or (x.shape[0]<2) :
-        res=[np.nan]
+    if (np.isnan(x).sum() > 0) or (x.shape[0] < 2):
+        res = [np.nan]
     else:
         model_ols.fit(np.array(idx).reshape(-1, 1), np.array(x)[idx].reshape(-1, 1))
         res = model_ols.coef_[0]
@@ -159,7 +204,7 @@ def corr_with_parabolic_grp(x):
         y = make_parabolic(w=x.shape[0])
         res = np.corrcoef(x, y)[0, 1]
     else:
-        res=np.nan
+        res = np.nan
     return res
 
 
@@ -190,7 +235,8 @@ def apply_rolling_functions(df, col='GR', window=10,
     if func is None:
         func = {'mean': np.mean, 'std': np.std, 'diff_sum': diff_sum, 'abs_diff_sum': abs_diff_sum,
                 'corr_parabolic': lambda x: corr_with_parabolic(x, template),
-                'slope': rolling_slope, 'mid_vs_end': value_middle_vs_ends, 'max_diff': diff_max, 'min_diff': diff_min}
+                'slope': rolling_slope, 'mid_vs_end': value_middle_vs_ends, 'max_diff': diff_max, 'min_diff': diff_min,
+                'kurtosis': kurtosis,'abs_diff_exceed_count':abs_diff_exceed_count}
     names = []
     for k, v in func.items():
         series = df.loc[:, col].rolling(window=window, center=center, min_periods=window // 2).apply(v, raw=True)
@@ -212,7 +258,7 @@ def apply_grouped_functions(df, col='GR', groups='grp',
                 'min_diff': diff_min,
                 'half_slope': lambda x: half_rolling_slope(x)[0],
                 'corr_parabolic': lambda x: corr_with_parabolic_grp(x),
-                'size': lambda x: x.shape[0]}
+                'size': lambda x: x.shape[0], 'kurtosis': kurtosis,'abs_diff_exceed_count':abs_diff_exceed_count}
     names = []
     for k, v in func.items():
         # series = df.groupby(groups)[col].transform(v)
@@ -238,19 +284,25 @@ def apply_grouped_functions(df, col='GR', groups='grp',
 
 
 def preprocess_a_well(df_well, windows=[15, 30, 65]):
-    df_well['GR_medfilt'] = medfilt(df_well['GR'], 11)
+    df_well['GR_medfilt'] = medfilt(df_well['GR'], 5)
     df_well['GR_medfilt_s'] = medfilt(df_well['GR'], 3)
-
-    df_well['GR_diff'] = df_well['GR_medfilt'].diff()
+    df_well['GR_diff_medfilt'] = df_well['GR_medfilt'].diff()
     df_well['GR_diff_scale'] = df_well['GR_medfilt'] - df_well['GR_medfilt_s']
-
-    df_well['grdiff'] = df_well['GR_medfilt'] - medfilt(df_well['GR'], 3)
-
+    df_well['GR_diff_scale_large'] = medfilt(df_well['GR'], 3) - medfilt(df_well['GR_medfilt'], 31)
     df_well['GR_shifted'] = df_well['GR_medfilt'].shift(100)
+    df_well['GR_resid'] = df_well['GR'] - df_well['GR_medfilt']
+    # Calculate derivatives:
+    df_well = calculate_derivatives(df_well,order=2,cols=['GR_medfilt','GR_medfilt_s','GR'])
+    df_well = calculate_derivatives(df_well, order=3, cols=['GR_medfilt', 'GR_medfilt_s', 'GR'])
+
     block, counts = divide_block(medfilt(df_well['GR'], 11))
-    df_well['grp'] = (df_well[f'label_nn_{windows[0]}'] != df_well[f'label_nn_{windows[0]}'].shift(1)).cumsum().fillna('pad')
+    df_well['grp'] = (df_well[f'label_nn_{windows[0]}'] != df_well[f'label_nn_{windows[0]}'].shift(1)).cumsum().fillna(
+        'pad')
     df_well['block'] = block
     df_well['counts'] = counts
+    # Divide by quick changes in GR:
+    df_well=divide_block_steps(df_well,20)
+
     # Add lag variables:
     df_lags = calculate_lags(s=df_well['GR_medfilt'], note='GR_medfilt', lags=np.arange(-50, 50, 5))
 
@@ -258,6 +310,7 @@ def preprocess_a_well(df_well, windows=[15, 30, 65]):
     for w in windows:
         df_label_lags = calculate_lags(s=df_well[f'label_nn_{w}'], note=f'label_nn_{w}', lags=np.arange(-50, 50, 5))
         label_lags.append(df_label_lags.copy())
+    df_feats_wxs = apply_rolling_functions(df_well.copy(), window=5, col='GR_medfilt')
 
     df_feats_ws = apply_rolling_functions(df_well.copy(), window=10, col='GR_medfilt')
     df_feats_wm = apply_rolling_functions(df_well.copy(), window=20, col='GR_medfilt')
@@ -266,16 +319,21 @@ def preprocess_a_well(df_well, windows=[15, 30, 65]):
     df_feats_wl_right = apply_rolling_functions(df_well.copy(), window=100, col='GR_medfilt', center=False)
     # df_feats_wl_right_shift = apply_rolling_functions(df_well.copy(), window=100, col='GR_shifted', center=False)
     df_feats_grouped = apply_grouped_functions(df_well.copy(), col='GR_medfilt', groups='grp')
-
     # Smaller scale features:
+    df_feats_small_scale_wxs = apply_rolling_functions(df_well.copy(), window=5, col='GR_medfilt_s')
     df_feats_small_scale_ws = apply_rolling_functions(df_well.copy(), window=11, col='GR_medfilt_s')
     df_feats_small_scale_wm = apply_rolling_functions(df_well.copy(), window=21, col='GR_medfilt_s')
     df_feats_grouped_small_scale = apply_grouped_functions(df_well.copy(), col='GR_medfilt_s', groups='grp')
+    df_feats_grouped_GR_changes = apply_grouped_functions(df_well.copy(), col='GR', groups='count_groups')
+
+
 
     # df_feats = pd.concat([df_well,df_lags,df_feats_ws, df_feats_wm, df_feats_wl,df_feats_wl_right,df_feats_wxl], axis=1)
     df_feats = pd.concat(
-        [df_well, df_lags, df_feats_ws, df_feats_wm, df_feats_wl, df_feats_wl_right, df_feats_wxl,
-         df_feats_grouped,df_feats_small_scale_wm,df_feats_small_scale_ws,df_feats_grouped_small_scale] + label_lags, axis=1)
+        [df_well, df_lags, df_feats_wxs, df_feats_ws, df_feats_wm, df_feats_wl, df_feats_wl_right, df_feats_wxl,
+         df_feats_grouped, df_feats_small_scale_wm, df_feats_small_scale_ws, df_feats_grouped_small_scale,
+         df_feats_small_scale_wxs,df_feats_grouped_GR_changes] + label_lags, axis=1)
+
 
     return df_feats
 
@@ -293,7 +351,7 @@ def preprocess_dataset(df, n_wells=50, NN_list=[], labels_list=[]):
             list_df_wells[i] = tmp
     for w in tqdm(list_df_wells):
         df_well = w
-        df_new = preprocess_a_well(df_well.copy(),windows=[15])
+        df_new = preprocess_a_well(df_well.copy(), windows=[15])
         df_well_list.append(df_new.copy())
 
     df_preprocessed = pd.concat(df_well_list, axis=0)
@@ -332,14 +390,18 @@ def main(input_filepath, output_filepath):
     fname_final_train = os.path.join(output_filepath, 'train.pck')
 
     n_test = df_test['well_id'].unique().shape[0]
+
+    # Scale the data:
+    #df_train['GR'] = (df_train['GR'] - df_train['GR'].mean()) / df_train['GR'].std()
+
     n_wells = 200
-    NN_l, labels_l = get_a_NN_object(df_train, n_wells,n_wells_end=400, window_length=65)
-    NN_m, labels_m = get_a_NN_object(df_train, 400,800, window_length=30)
-    NN_s, labels_s = get_a_NN_object(df_train, 800,1200, window_length=15)
+    NN_l, labels_l = get_a_NN_object(df_train, n_wells, n_wells_end=400, window_length=65)
+    NN_m, labels_m = get_a_NN_object(df_train, 400, 800, window_length=30, kernel_size=11)
+    NN_s, labels_s = get_a_NN_object(df_train, 800, 1200, window_length=15, kernel_size=3)
 
     df_train_processed = preprocess_dataset_parallel(df_train, n_wells=n_wells, NN_list=[NN_l, NN_m, NN_s],
                                                      labels_list=[labels_l, labels_m, labels_s])
-    #df_train_processed = preprocess_dataset(df_train, n_wells=n_wells, NN_list=[NN_s],
+    # df_train_processed = preprocess_dataset(df_train, n_wells=n_wells, NN_list=[NN_s],
     #                                                  labels_list=[labels_s])
 
     df_train_processed.to_pickle(fname_final_train)

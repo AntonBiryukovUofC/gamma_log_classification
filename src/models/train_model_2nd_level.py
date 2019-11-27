@@ -14,6 +14,7 @@ log_fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_fmt)
 
 tgt='label'
+cols = ['flip_same_65', 'same_after_inv_65', 'flip_same_30', 'same_after_inv_30', 'flip_same_15', 'same_after_inv_15']
 
 def main(input_file_path, output_file_path, n_splits=5):
     X=[]
@@ -25,7 +26,6 @@ def main(input_file_path, output_file_path, n_splits=5):
     for s in shifts:
         s_colnames = [f'{x}_{s}' for x in colnames]
         df[s_colnames] = grouped[colnames].shift(s)
-        X.append(df.copy())
     models = []
     scores = []
     f1_scores = []
@@ -33,7 +33,8 @@ def main(input_file_path, output_file_path, n_splits=5):
 
     y = df.loc[~df[tgt].isna(), tgt]
     X = df.loc[~df[tgt].isna(), :].drop(["well_id", tgt,'row_id'], axis=1)
-
+    for c in cols:
+        X[c] = pd.to_numeric(X[c])
     groups = df.loc[~df[tgt].isna(), 'well_id']
     print(groups.unique())
     preds_holdout = np.ones((df.shape[0], 5))*(-50)

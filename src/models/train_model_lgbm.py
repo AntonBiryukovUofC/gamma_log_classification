@@ -48,19 +48,18 @@ def main(input_file_path, output_file_path, n_splits=5):
     for k, (train_index, test_index) in enumerate(cv.split(X, y, groups)):
 
         X_train, X_holdout = X.iloc[train_index, :], X.iloc[test_index, :]
+        group_train, group_holdout = groups.iloc[train_index], groups.iloc[test_index]
 
-
-
-        model = LGBMClassifier(n_estimators=1500,
-                               learning_rate=0.08,
+        model = LGBMClassifier(n_estimators=2000,
+                               learning_rate=0.04,
                                feature_fraction=0.2,
                                bagging_fraction = 0.6,
             ##objective="multiclassova",
-            num_leaves=16,
+            num_leaves=32,
             random_state=k,
             n_jobs=-1,
-            reg_alpha=10,
-            reg_lambda=10,
+            reg_alpha=0,
+            reg_lambda=0,
             class_weight='balanced'
 
 
@@ -73,6 +72,7 @@ def main(input_file_path, output_file_path, n_splits=5):
             y_train,
             verbose=200,
             eval_set=(X_holdout,y_holdout),
+            eval_metric=['multi_error'],
             #early_stopping_rounds=150,
 
         )
@@ -92,7 +92,7 @@ def main(input_file_path, output_file_path, n_splits=5):
         df_preds = pd.concat([df,df_preds],axis = 1)
         df_preds['pred'] = np.argmax(preds_holdout,axis=1)
         print(eli5.format_as_dataframe(explain_weights(model)).head(50))
-
+        break
     df_preds.to_pickle(os.path.join(interim_file_path,f'holdout_lgbm.pck'))
     logging.info(f" Holdout score = {np.mean(scores)} , std = {np.std(scores)}")
     logging.info(f" Holdout F1 score = {np.mean(f1_scores)} , std = {np.std(f1_scores)}")
