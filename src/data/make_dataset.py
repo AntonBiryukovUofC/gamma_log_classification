@@ -315,8 +315,8 @@ def preprocess_a_well(df_well, windows=[15, 30, 65]):
     df_well['GR_diff_scale'] = df_well['GR_medfilt'] - df_well['GR_medfilt_s']
     df_well['GR_diff_scale_large'] = medfilt(df_well['GR'], 3) - medfilt(df_well['GR_medfilt'], 31)
     df_well['GR_shifted'] = df_well['GR_medfilt'].shift(100)
-    df_well['GR_resid'] = df_well['GR'] - df_well['GR_medfilt']
-    df_well['GR_resid_s'] = df_well['GR'] - df_well['GR_medfilt']
+    df_well['resid'] = df_well['GR'] - df_well['GR_medfilt']
+    df_well['resid_s'] = df_well['GR'] - df_well['GR_medfilt']
 
     # Calculate derivatives:
     df_well = calculate_derivatives(df_well, order=2, cols=['GR_medfilt', 'GR_medfilt_s', 'GR'])
