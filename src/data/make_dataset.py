@@ -13,6 +13,7 @@ from tqdm import tqdm
 from scipy.signal import medfilt
 import ruptures as rpt
 from scipy.stats import mode, kurtosis
+from statsmodels.tsa.stattools import acf
 
 
 def calculate_derivatives(df, order=1, cols=['A', 'B']):
@@ -144,7 +145,12 @@ def abs_diff_exceed_count(x,t=24):
         res = -99
     return res
 
-
+def calculate_acf(x):
+    if x.shape[0] > 2:
+        res = np.mean(acf(x,fft=False)[1:])
+    else:
+        res = -99
+    return res
 
 def rolling_slope(x):
     model_ols = LinearRegression()
@@ -154,6 +160,22 @@ def rolling_slope(x):
     else:
         model_ols.fit(np.array(idx).reshape(-1, 1), np.array(x).reshape(-1, 1))
         res = model_ols.coef_[0]
+    return res
+
+
+def acf_residuals(x):
+    model_ols = LinearRegression()
+    idx = np.arange(x.shape[0])
+    if (np.isnan(x).sum() > 0) or (x.shape[0] < 2):
+        res = np.nan
+    else:
+        model_ols.fit(idx.reshape(-1, 1), np.array(x).reshape(-1, 1))
+        resid = model_ols.predict(idx.reshape(-1, 1)) - np.array(x).reshape(-1, 1)
+        acf_resid = acf(resid.flatten(),fft=False)[1:]
+        #thresholds =
+        #num_thresh = np.abs(acf_resid) > (np.range(acf_resid.shape[0])+1)
+        res = acf_resid.mean()
+
     return res
 
 
@@ -236,7 +258,7 @@ def apply_rolling_functions(df, col='GR', window=10,
         func = {'mean': np.mean, 'std': np.std, 'diff_sum': diff_sum, 'abs_diff_sum': abs_diff_sum,
                 'corr_parabolic': lambda x: corr_with_parabolic(x, template),
                 'slope': rolling_slope, 'mid_vs_end': value_middle_vs_ends, 'max_diff': diff_max, 'min_diff': diff_min,
-                'kurtosis': kurtosis,'abs_diff_exceed_count':abs_diff_exceed_count}
+                'kurtosis': kurtosis,'abs_diff_exceed_count':abs_diff_exceed_count,'acf':calculate_acf,'acf_resid':acf_residuals}
     names = []
     for k, v in func.items():
         series = df.loc[:, col].rolling(window=window, center=center, min_periods=window // 2).apply(v, raw=True)
@@ -258,7 +280,8 @@ def apply_grouped_functions(df, col='GR', groups='grp',
                 'min_diff': diff_min,
                 'half_slope': lambda x: half_rolling_slope(x)[0],
                 'corr_parabolic': lambda x: corr_with_parabolic_grp(x),
-                'size': lambda x: x.shape[0], 'kurtosis': kurtosis,'abs_diff_exceed_count':abs_diff_exceed_count}
+                'size': lambda x: x.shape[0], 'kurtosis': kurtosis,'abs_diff_exceed_count':abs_diff_exceed_count,
+                'acf':calculate_acf,'acf_resid':acf_residuals}
     names = []
     for k, v in func.items():
         # series = df.groupby(groups)[col].transform(v)
