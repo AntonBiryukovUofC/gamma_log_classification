@@ -153,7 +153,7 @@ def create_unet(input_size, init_power=4, kernel_size=3, dropout=0.3):
     # outputs = Lambda(func, output_shape = [1]) (outputs)
     model = Model(inputs=[inputs], outputs=[outputs])
     print(model.summary())
-    model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.05), metrics=['acc', 'categorical_crossentropy'])
+    model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.04), metrics=['acc', 'categorical_crossentropy'])
 
     return model
 
@@ -198,7 +198,7 @@ def main(input_file_path, output_file_path, n_splits=5):
             X_train,
             y_train,
             verbose=1,
-            epochs=20,
+            epochs=50,
             batch_size=4,
         #    callbacks=[clr],
             validation_data = (X_holdout,y_holdout),
