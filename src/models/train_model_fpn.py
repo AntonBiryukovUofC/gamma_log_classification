@@ -6,11 +6,11 @@ from pathlib import Path
 import numpy as np
 import tensorflow as tf
 from keras.callbacks import Callback
-from keras.layers import Dense
+from keras.layers import Dense, concatenate
 from keras.layers import Input, UpSampling1D, Flatten, Average, Reshape
-from keras.layers.convolutional import Conv1D
+from keras.layers.convolutional import Conv1D, Conv2D, UpSampling2D
 from keras.layers.core import Dropout
-from keras.layers.pooling import MaxPooling1D
+from keras.layers.pooling import MaxPooling1D, MaxPooling2D
 from keras.models import Model
 from keras.optimizers import *
 from sklearn.metrics import accuracy_score, f1_score
@@ -99,51 +99,63 @@ class SGDRScheduler(Callback):
 
 
 
-def create_cnn_fpn_like(input_size, dropout=0.1, n_dense=16, n_conv=64):
+
+def create_unet(input_size, init_power=4, kernel_size=3, dropout=0.3):
+    # Build U-Net model
     inputs = Input(input_size)
-    conv1_1 = Conv1D(n_conv, 4, activation='relu', padding='same', kernel_initializer='he_normal')(inputs)
-    pool1_1 = MaxPooling1D(pool_size=2)(conv1_1)
-    flat_1 = Flatten()(pool1_1)
-    dense1_1 = Dense(n_dense, activation='relu')(flat_1)
-    dense1_1 = Dropout(dropout)(dense1_1)
-    dense1_1 = Reshape((n_dense, 1), input_shape=(n_dense,))(dense1_1)
-    conv2_1 = Conv1D(n_conv, 4, activation='tanh', padding='same', kernel_initializer='he_normal')(dense1_1)
-    upsamp1_1 = UpSampling1D(size=2)(conv2_1)
-    final_1 = Conv1D(1, 4, activation='relu', padding='same', kernel_initializer='he_normal')(upsamp1_1)
-    final_1_d = Dense(5, activation='softmax')(final_1)
+    c1 = Conv1D(2 ** init_power, kernel_size, activation='relu', padding='same')(inputs)
+    c1 = Dropout(dropout)(c1)
+    c1 = Conv1D(2 ** init_power, kernel_size, activation='relu', padding='same')(c1)
+    p1 = MaxPooling1D(2)(c1)
+    c2 = Conv1D(2 ** (init_power + 1), kernel_size, activation='relu', padding='same')(p1)
+    c2 = Dropout(dropout)(c2)
+    c2 = Conv1D(2 ** (init_power + 1), kernel_size, activation='relu', padding='same')(c2)
+    p2 = MaxPooling1D(2)(c2)
 
-    conv1_2 = Conv1D(n_conv, 8, activation='relu', padding='same', kernel_initializer='he_normal')(inputs)
-    pool1_2 = MaxPooling1D(pool_size=2)(conv1_2)
-    flat_2 = Flatten()(pool1_2)
-    dense1_2 = Dense(n_dense, activation='relu')(flat_2)
-    dense1_2 = Dropout(dropout)(dense1_2)
-    dense1_2 = Reshape((n_dense, 1), input_shape=(n_dense,))(dense1_2)
-    conv2_2 = Conv1D(n_conv, 8, activation='tanh', padding='same', kernel_initializer='he_normal')(dense1_2)
-    upsamp1_2 = UpSampling1D(size=2)(conv2_2)
+    c3 = Conv1D(2 ** (init_power + 2), kernel_size, activation='relu', padding='same')(p2)
+    c3 = Dropout(dropout)(c3)
+    c3 = Conv1D(2 ** (init_power + 2), kernel_size, activation='relu', padding='same')(c3)
+    p3 = MaxPooling1D(2)(c3)
 
+    c4 = Conv1D(2 ** (init_power + 3), kernel_size, activation='relu', padding='same')(p3)
+    c4 = Dropout(dropout)(c4)
+    c4 = Conv1D(2 ** (init_power + 3), kernel_size, activation='relu', padding='same')(c4)
+    p4 = MaxPooling1D(2)(c4)
 
-    final_2 = Conv1D(1, 8, activation='relu', padding='same', kernel_initializer='he_normal')(upsamp1_2)
-    final_2_d = Dense(5, activation='softmax')(final_2)
+    c5 = Conv1D(2 ** (init_power + 4), kernel_size, activation='relu', padding='same')(p4)
+    c5 = Dropout(dropout)(c5)
+    c5 = Conv1D(2 ** (init_power + 4), kernel_size, activation='relu', padding='same')(c5)
 
-    conv1_3 = Conv1D(n_conv, 16, activation='relu', padding='same', kernel_initializer='he_normal')(inputs)
-    pool1_3 = MaxPooling1D(pool_size=2)(conv1_3)
-    flat_3 = Flatten()(pool1_3)
-    dense1_3 = Dense(n_dense, activation='relu')(flat_3)
-    dense1_3 = Dropout(dropout)(dense1_3)
-    dense1_3 = Reshape((n_dense, 1), input_shape=(n_dense,))(dense1_3)
-    # conv2_3 = Conv1D(n_conv, 16, activation='relu', padding='same', kernel_initializer='he_normal')(dense1_3)
-    conv2_3 = Conv1D(n_conv, 16, activation='tanh', padding='same', kernel_initializer='he_normal')(dense1_3)
-    upsamp1_3 = UpSampling1D(size=2)(conv2_3)
-    final_3 = Conv1D(1, 16, activation='relu', padding='same', kernel_initializer='he_normal')(upsamp1_3)
-    final_3_d = Dense(5, activation='softmax')(final_3)
+    u6 = UpSampling1D(2)(c5)
+    u6 = concatenate([u6, c4])
+    c6 = Conv1D(2 ** (init_power + 3), kernel_size, activation='relu', padding='same')(u6)
+    c6 = Dropout(dropout)(c6)
+    c6 = Conv1D(2 ** (init_power + 3), kernel_size, activation='relu', padding='same')(c6)
 
-    final = Average()([final_1_d, final_2_d, final_3_d])
-    model = Model(inputs=inputs, outputs=final)
+    u7 = UpSampling1D(2)(c6)
+    u7 = concatenate([u7, c3])
+    c7 = Conv1D(2 ** (init_power + 2), kernel_size, activation='relu', padding='same')(u7)
+    c7 = Dropout(dropout)(c7)
+    c7 = Conv1D(2 ** (init_power + 2), kernel_size, activation='relu', padding='same')(c7)
+
+    u8 = UpSampling1D(2)(c7)
+    u8 = concatenate([u8, c2])
+    c8 = Conv1D(2 ** (init_power + 1), kernel_size, activation='relu', padding='same')(u8)
+    c8 = Dropout(dropout)(c8)
+    c8 = Conv1D(2 ** (init_power + 1), kernel_size, activation='relu', padding='same')(c8)
+
+    u9 = UpSampling1D(2)(c8)
+    u9 = concatenate([u9, c1])
+    c9 = Conv1D(2 ** init_power, kernel_size, activation='relu', padding='same')(u9)
+    c9 = Dropout(dropout)(c9)
+    c9 = Conv1D(2 ** init_power, kernel_size, activation='relu', padding='same')(c9)
+    outputs = Conv1D(5, 1, activation='softmax')(c9)
+    # outputs = Lambda(func, output_shape = [1]) (outputs)
+    model = Model(inputs=[inputs], outputs=[outputs])
     print(model.summary())
-    model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.2))
+    model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.05), metrics=['acc', 'categorical_crossentropy'])
 
     return model
-
 
 project_dir = Path(__file__).resolve().parents[2]
 
@@ -163,26 +175,33 @@ def main(input_file_path, output_file_path, n_splits=5):
     with open(input_file_name, 'rb') as f:
         results = pickle.load(f)
     X, y = results['X'], results['y']
+    X = np.pad(X,pad_width=((0,0),(2,2),(0,0)),mode='edge')
+    y = np.pad(y, pad_width=((0,0),(2,2),(0,0)), mode='edge')
     cv = KFold(n_splits)
     f1_scores = []
     scores = []
     preds_holdout = np.ones((X.shape[0], 5)) * (-50)
     X = (X-X.mean())/X.std()
 
-    clr = SGDRScheduler(min_lr=1e-2,max_lr=5e-1,steps_per_epoch=np.ceil(3200/32))
+
+    #clr = SGDRScheduler(min_lr=1e-2,max_lr=5e-1,steps_per_epoch=np.ceil(3200/32))
 
     for k, (train_index, test_index) in enumerate(cv.split(X, y)):
         X_train, X_holdout = X[train_index, :], X[test_index, :]
         y_train, y_holdout = y[train_index], y[test_index]
-
-        model = create_cnn_fpn_like((X.shape[1], 1), n_dense=550)
+        
+        
+        print(X_train.shape)
+        
+        model = create_unet((X.shape[1], 1),init_power=5,kernel_size=5)
         model.fit(
             X_train,
             y_train,
             verbose=1,
             epochs=20,
-            batch_size=32,
-            callbacks=[clr]
+            batch_size=4,
+        #    callbacks=[clr],
+            validation_data = (X_holdout,y_holdout),
         )
 
         pred = model.predict(X_holdout)
@@ -191,9 +210,9 @@ def main(input_file_path, output_file_path, n_splits=5):
         f1_sc = f1_score(np.argmax(y_holdout, axis=2).flatten(), np.argmax(pred, axis=2).flatten(), labels=[1, 2, 3, 4], average='weighted')
         f1_scores.append(f1_sc)
         scores.append(score)
-
+        
         logging.info(f"{k} - Holdout score = {score}, f1 = {f1_sc}")
-
+        break
     logging.info(f" Holdout score = {np.mean(scores)} , std = {np.std(scores)}")
     logging.info(f" Holdout F1 score = {np.mean(f1_scores)} , std = {np.std(f1_scores)}")
 

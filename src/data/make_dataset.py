@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
+import pickle
+
 import pandas as pd
 import click
 import logging
@@ -14,6 +16,9 @@ from scipy.signal import medfilt
 import ruptures as rpt
 from scipy.stats import mode, kurtosis
 from statsmodels.tsa.stattools import acf
+
+log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+logging.basicConfig(level=logging.INFO, format=log_fmt)
 
 
 def calculate_derivatives(df, order=1, cols=['A', 'B']):
@@ -147,7 +152,7 @@ def abs_diff_exceed_count(x, t=24):
 
 def calculate_acf(x):
     if x.shape[0] > 2:
-        res = np.mean(acf(x, fft=False)[1:])
+        res = np.mean(np.abs(acf(x, fft=False)[1:]))
     else:
         res = -99
     return res
@@ -175,7 +180,7 @@ def acf_residuals(x):
         acf_resid = acf(resid.flatten(), fft=False)[1:]
         # thresholds =
         # num_thresh = np.abs(acf_resid) > (np.range(acf_resid.shape[0])+1)
-        res = acf_resid.mean()
+        res = np.abs(acf_resid).mean()
 
     return res
 
@@ -246,17 +251,40 @@ def calculate_lags(s, note='series', lags=None):
     names = []
     series = []
     for l in lags:
-        series.append(s.shift(l))
-        names.append(f"{note}_lag_{l}")
+        if l != 0:
+            series.append(s.shift(l))
+            names.append(f"{note}_lag_{l}")
     df = pd.DataFrame(dict(zip(names, series)))
     return df
+
+
+def maxmindiff(x):
+    x = np.array(x)
+    res = np.max(x) - np.min(x)
+    return res
+
+
+def dist_between_maxmin(x):
+    x = np.array(x)
+    res = (np.argmax(x) - np.argmin(x))
+    return res
+
+
+def dist_between_maxmin_norm(x):
+    x = np.array(x)
+    if x.shape[0] > 2:
+        res = (np.argmax(x) - np.argmin(x)) / x.shape[0]
+    else:
+        res = -99
+    return res
 
 
 def apply_rolling_functions(df, col='GR', window=10,
                             func=None, center=True):
     template = make_parabolic(w=window)
     if func is None:
-        func = {'mean': np.mean, 'std': np.std, 'diff_sum': diff_sum, 'abs_diff_sum': abs_diff_sum,
+        func = {'max': np.max, 'min': np.min, 'maxmindiff': maxmindiff, 'dist_between_maxmin': dist_between_maxmin,
+                'mean': np.mean, 'std': np.std, 'diff_sum': diff_sum, 'abs_diff_sum': abs_diff_sum,
                 'corr_parabolic': lambda x: corr_with_parabolic(x, template),
                 'slope': rolling_slope, 'mid_vs_end': value_middle_vs_ends, 'max_diff': diff_max, 'min_diff': diff_min,
                 'kurtosis': kurtosis, 'abs_diff_exceed_count': abs_diff_exceed_count, 'acf': calculate_acf,
@@ -274,20 +302,19 @@ def apply_rolling_functions(df, col='GR', window=10,
 
 def apply_grouped_functions(df, col='GR', groups='grp',
                             func=None):
-    template = make_parabolic(w=50)
-
     if func is None:
         func = {'mean': np.mean, 'std': np.std, 'diff_sum': diff_sum, 'abs_diff_sum': abs_diff_sum,
+                'dist_between_maxmin': dist_between_maxmin, 'dist_between_maxmin_norm': dist_between_maxmin_norm,
                 'slope': lambda x: rolling_slope(x)[0], 'mid_vs_end': value_middle_vs_ends, 'max_diff': diff_max,
                 'min_diff': diff_min,
                 'half_slope': lambda x: half_rolling_slope(x)[0],
                 'corr_parabolic': lambda x: corr_with_parabolic_grp(x),
                 'size': lambda x: x.shape[0], 'kurtosis': kurtosis, 'abs_diff_exceed_count': abs_diff_exceed_count,
-                'acf': calculate_acf, 'acf_resid': acf_residuals}
+                'acf': calculate_acf}
     names = []
     for k, v in func.items():
         # series = df.groupby(groups)[col].transform(v)
-        colname = f'{col}_{k}'
+        colname = f'{col}_{k}_{groups}'
         # df.loc[:, colname] = series.values
         grouped_stats = df.groupby(groups)[col].apply(v)
         grouped_stats_prev = df.groupby(groups)[col].apply(v).shift(1)
@@ -295,15 +322,15 @@ def apply_grouped_functions(df, col='GR', groups='grp',
         grouped_stats_diffp = grouped_stats - grouped_stats_prev
         grouped_stats_diffn = grouped_stats - grouped_stats_next
 
-        df = df.join(grouped_stats, on=groups, rsuffix=f'_{k}')
-        df = df.join(grouped_stats_diffp, on=groups, rsuffix=f'_{k}_dp')
-        df = df.join(grouped_stats_diffn, on=groups, rsuffix=f'_{k}_dn')
+        df = df.join(grouped_stats, on=groups, rsuffix=f'_{k}_{groups}')
+        df = df.join(grouped_stats_diffp, on=groups, rsuffix=f'_{k}_{groups}_dp')
+        df = df.join(grouped_stats_diffn, on=groups, rsuffix=f'_{k}_{groups}_dn')
 
         names.append(colname)
-        names.append(f'{col}_{k}_dp')
-        names.append(f'{col}_{k}_dn')
+        names.append(f'{col}_{k}_{groups}_dp')
+        names.append(f'{col}_{k}_{groups}_dn')
 
-    df[f'{col}_slopediff'] = df[f'{col}_slope'] - df[f'{col}_half_slope']
+    df[f'{col}_slopediff_{groups}'] = df[f'{col}_slope_{groups}'] - df[f'{col}_half_slope_{groups}']
     df.index = np.arange(df.shape[0])
     return df[names]
 
@@ -315,7 +342,7 @@ def preprocess_a_well(df_well, windows=[15, 30, 65]):
     df_well['GR_diff_scale'] = df_well['GR_medfilt'] - df_well['GR_medfilt_s']
     df_well['GR_diff_scale_large'] = medfilt(df_well['GR'], 3) - medfilt(df_well['GR_medfilt'], 31)
     df_well['GR_shifted'] = df_well['GR_medfilt'].shift(100)
-    df_well['resid'] = df_well['GR'] - df_well['GR_medfilt']
+    df_well['resid'] = medfilt(df_well['GR'], 11) - df_well['GR_medfilt']
     df_well['resid_s'] = df_well['GR'] - df_well['GR_medfilt']
 
     # Calculate derivatives:
@@ -366,7 +393,7 @@ def preprocess_a_well(df_well, windows=[15, 30, 65]):
     df_feats = pd.concat(
         [df_well, df_lags, df_feats_wxs, df_feats_ws, df_feats_wm, df_feats_wl, df_feats_wl_right, df_feats_wxl,
          df_feats_grouped, df_feats_small_scale_wm, df_feats_small_scale_ws, df_feats_grouped_small_scale,
-         df_feats_small_scale_wxs, df_feats_grouped_GR_changes] + label_lags, axis=1)
+         df_feats_small_scale_wxs, df_feats_grouped_GR_changes] + resid_list + label_lags, axis=1)
 
     return df_feats
 
@@ -428,9 +455,30 @@ def main(input_filepath, output_filepath):
     # df_train['GR'] = (df_train['GR'] - df_train['GR'].mean()) / df_train['GR'].std()
 
     n_wells = 200
-    NN_l, labels_l = get_a_NN_object(df_train, n_wells, n_wells_end=400, window_length=65)
-    NN_m, labels_m = get_a_NN_object(df_train, 400, 800, window_length=30, kernel_size=11)
-    NN_s, labels_s = get_a_NN_object(df_train, 800, 1200, window_length=15, kernel_size=3)
+    nn_dict = {}
+    if not (os.path.exists(os.path.join(output_filepath, 'NN.pck'))):
+        NN_l, labels_l = get_a_NN_object(df_train, n_wells, n_wells_end=400, window_length=65)
+        NN_m, labels_m = get_a_NN_object(df_train, 400, 800, window_length=30, kernel_size=11)
+        NN_s, labels_s = get_a_NN_object(df_train, 800, 1200, window_length=15, kernel_size=3)
+        nn_dict['NN_l'] = NN_l
+        nn_dict['NN_m'] = NN_m
+        nn_dict['NN_s'] = NN_s
+        nn_dict['label_l'] = labels_l
+        nn_dict['label_m'] = labels_m
+        nn_dict['label_s'] = labels_s
+        logger.info('saving pickle NN')
+        with open(os.path.join(output_filepath, 'NN.pck'), 'wb') as f:
+            pickle.dump(nn_dict, f)
+    else:
+        logger.info('reading NN pickle...')
+        with open(os.path.exists(os.path.join(output_filepath, 'NN.pck')), 'rb') as f:
+            nn_dict = pickle.load(f)
+        NN_l = nn_dict['NN_l']
+        NN_m = nn_dict['NN_m']
+        NN_s = nn_dict['NN_s']
+        labels_l = nn_dict['label_l']
+        labels_m = nn_dict['label_m']
+        labels_s = nn_dict['label_s']
 
     df_train_processed = preprocess_dataset_parallel(df_train, n_wells=n_wells, NN_list=[NN_l, NN_m, NN_s],
                                                      labels_list=[labels_l, labels_m, labels_s])
@@ -446,9 +494,6 @@ def main(input_filepath, output_filepath):
 
 
 if __name__ == '__main__':
-    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logging.basicConfig(level=logging.INFO, format=log_fmt)
-
     # not used in this stub but often useful for finding various files
     project_dir = Path(__file__).resolve().parents[2]
 
