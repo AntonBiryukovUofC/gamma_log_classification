@@ -1,21 +1,38 @@
+import pandas as pd
 import logging
 import os
 import pickle
 from pathlib import Path
 
-import numpy as np
-import tensorflow as tf
-from keras.callbacks import Callback
-from keras.layers import Dense, concatenate
-from keras.layers import Input, UpSampling1D, Flatten, Average, Reshape
-from keras.layers.convolutional import Conv1D, Conv2D, UpSampling2D
+from keras.callbacks import Callback, ModelCheckpoint
+from keras.layers import Input, UpSampling1D
+from keras.layers import concatenate
+from keras.layers.convolutional import Conv1D
 from keras.layers.core import Dropout
-from keras.layers.pooling import MaxPooling1D, MaxPooling2D
+from keras.layers.pooling import MaxPooling1D
 from keras.models import Model
 from keras.optimizers import *
+from keras_contrib.callbacks import CyclicLR
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import KFold
+import tensorflow as tf
+import altair as alt
+# gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.9)
+#
+from keras.models import load_model
+# tf.Session(config=tf.ConfigProto(gpu_options=gpu_options,allow_soft_placement=True)
 
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+  try:
+    # Currently, memory growth needs to be the same across GPUs
+    for gpu in gpus:
+      tf.config.experimental.set_memory_growth(gpu, True)
+    logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+    print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+  except RuntimeError as e:
+    # Memory growth must be set before GPUs have been initialized
+    print(e)
 
 class SGDRScheduler(Callback):
     '''Cosine annealing learning rate scheduler with periodic restarts.
@@ -171,6 +188,10 @@ def main(input_file_path, output_file_path, n_splits=5):
 
     # input_file_name_test = os.path.join(input_file_path, "Test_final.pck")
     # output_file_name = os.path.join(output_file_path, f"models_lgbm.pck")
+    model_checkpoint = ModelCheckpoint(os.path.join(output_file_path,"weights.{epoch:02d}-{val_loss:.2f}.hdf5"),
+                                       monitor='val_loss', verbose=0,
+                                       save_best_only=True, save_weights_only=False,
+                                       mode='auto', period=1)
 
     with open(input_file_name, 'rb') as f:
         results = pickle.load(f)
@@ -185,24 +206,34 @@ def main(input_file_path, output_file_path, n_splits=5):
 
 
     #clr = SGDRScheduler(min_lr=1e-2,max_lr=5e-1,steps_per_epoch=np.ceil(3200/32))
-
     for k, (train_index, test_index) in enumerate(cv.split(X, y)):
         X_train, X_holdout = X[train_index, :], X[test_index, :]
         y_train, y_holdout = y[train_index], y[test_index]
-        
-        
+
+        batch_size = 2
+
+        clr = CyclicLR(base_lr=5e-3, max_lr=4e-2, step_size=2*X_train.shape[0]/batch_size)
+
         print(X_train.shape)
         
-        model = create_unet((X.shape[1], 1),init_power=5,kernel_size=5)
+        #model = create_unet((X.shape[1], 1),init_power=4,kernel_size=3)
+        model = load_model('/home/geoanton/Repos/gamma_log_classification/models/weights.19-0.19.hdf5')
+
         model.fit(
             X_train,
             y_train,
             verbose=1,
             epochs=20,
-            batch_size=4,
-        #    callbacks=[clr],
+            batch_size=batch_size,
+            callbacks=[model_checkpoint,clr,clr],
             validation_data = (X_holdout,y_holdout),
         )
+
+        h = pd.DataFrame(clr.history)
+        ch=alt.Chart(data=h).encode(x='iterations',y='lr').mark_point()
+        ch_l=alt.Chart(data=h,width=800,height=800).encode(x=alt.X('lr',scale=alt.Scale(type='log')),y='loss').mark_point().interactive()
+        ch_l.save('loss_plot.html')
+        ch.save('lr_plot.html')
 
         pred = model.predict(X_holdout)
 
