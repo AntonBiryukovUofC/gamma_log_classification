@@ -303,7 +303,7 @@ def apply_rolling_functions(df, col='GR', window=10,
 def apply_grouped_functions(df, col='GR', groups='grp',
                             func=None):
     if func is None:
-        func = {'mean': np.mean, 'std': np.std, 'diff_sum': diff_sum, 'abs_diff_sum': abs_diff_sum,
+        func = {'mean': np.mean, 'std': np.std, 'median': np.median, 'diff_sum': diff_sum, 'abs_diff_sum': abs_diff_sum,
                 'dist_between_maxmin': dist_between_maxmin, 'dist_between_maxmin_norm': dist_between_maxmin_norm,
                 'slope': lambda x: rolling_slope(x)[0], 'mid_vs_end': value_middle_vs_ends, 'max_diff': diff_max,
                 'min_diff': diff_min,
@@ -344,7 +344,9 @@ def preprocess_a_well(df_well, windows=[15, 30, 65]):
     df_well['GR_shifted'] = df_well['GR_medfilt'].shift(100)
     df_well['resid'] = medfilt(df_well['GR'], 11) - df_well['GR_medfilt']
     df_well['resid_s'] = df_well['GR'] - df_well['GR_medfilt']
-
+    df_well['gr_flipped'] = (df_well['GR'] - 50) * (-1) + 100
+    df_well['GR_prod'] = df_well['gr_flipped'] * df_well['GR']
+    df_well.drop(columns=['gr_flipped'], inplace=True)
     # Calculate derivatives:
     df_well = calculate_derivatives(df_well, order=2, cols=['GR_medfilt', 'GR_medfilt_s', 'GR'])
     df_well = calculate_derivatives(df_well, order=3, cols=['GR_medfilt', 'GR_medfilt_s', 'GR'])
@@ -368,6 +370,27 @@ def preprocess_a_well(df_well, windows=[15, 30, 65]):
     df_feats_ws = apply_rolling_functions(df_well.copy(), window=10, col='GR_medfilt')
     df_feats_wm = apply_rolling_functions(df_well.copy(), window=20, col='GR_medfilt')
     df_feats_wl = apply_rolling_functions(df_well.copy(), window=50, col='GR_medfilt')
+
+    df_feats_flipped_wm = apply_rolling_functions(df_well.copy(), window=20, col='GR_prod',
+                                                  func={'mean': np.mean, 'std': np.std, 'diff_sum': diff_sum,
+                                                        'abs_diff_sum': abs_diff_sum,'median':np.median,
+                                                        'dist_between_maxmin': dist_between_maxmin,
+                                                        'dist_between_maxmin_norm': dist_between_maxmin_norm,
+                                                        'mid_vs_end': value_middle_vs_ends, 'max_diff': diff_max,
+                                                        'min_diff': diff_min,
+                                                        'kurtosis': kurtosis,
+                                                        'abs_diff_exceed_count': abs_diff_exceed_count})
+    df_feats_flipped_wl = apply_rolling_functions(df_well.copy(), window=40, col='GR_prod',
+                                                  func={'mean': np.mean, 'std': np.std, 'diff_sum': diff_sum,
+                                                        'median':np.median,
+                                                        'abs_diff_sum': abs_diff_sum,
+                                                        'dist_between_maxmin': dist_between_maxmin,
+                                                        'dist_between_maxmin_norm': dist_between_maxmin_norm,
+                                                        'mid_vs_end': value_middle_vs_ends, 'max_diff': diff_max,
+                                                        'min_diff': diff_min,
+                                                        'kurtosis': kurtosis,
+                                                        'abs_diff_exceed_count': abs_diff_exceed_count}
+                                                  )
 
     df_feats_wxs_resid = apply_rolling_functions(df_well.copy(), window=5, col='resid')
     df_feats_ws_resid = apply_rolling_functions(df_well.copy(), window=10, col='resid')
@@ -393,7 +416,8 @@ def preprocess_a_well(df_well, windows=[15, 30, 65]):
     df_feats = pd.concat(
         [df_well, df_lags, df_feats_wxs, df_feats_ws, df_feats_wm, df_feats_wl, df_feats_wl_right, df_feats_wxl,
          df_feats_grouped, df_feats_small_scale_wm, df_feats_small_scale_ws, df_feats_grouped_small_scale,
-         df_feats_small_scale_wxs, df_feats_grouped_GR_changes] + resid_list + label_lags, axis=1)
+         df_feats_small_scale_wxs, df_feats_grouped_GR_changes, df_feats_flipped_wl,
+         df_feats_flipped_wm] + resid_list + label_lags, axis=1)
 
     return df_feats
 
@@ -471,7 +495,7 @@ def main(input_filepath, output_filepath):
             pickle.dump(nn_dict, f)
     else:
         logger.info('reading NN pickle...')
-        with open(os.path.exists(os.path.join(output_filepath, 'NN.pck')), 'rb') as f:
+        with open(os.path.join(output_filepath, 'NN.pck'), 'rb') as f:
             nn_dict = pickle.load(f)
         NN_l = nn_dict['NN_l']
         NN_m = nn_dict['NN_m']
