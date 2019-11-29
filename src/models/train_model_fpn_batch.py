@@ -3,11 +3,17 @@ import os
 import pickle
 import sys
 
-sys.path.insert(0,'/home/anton/Repos/gamma_log_classification')
+sys.path.insert(0, './')
+
 import click
+
 from keras.callbacks import Callback, ModelCheckpoint
 from keras.optimizers import SGD
 from keras_contrib.callbacks import CyclicLR
+
+from keras.backend.tensorflow_backend import set_session
+import tensorflow as tf
+
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import KFold
 
@@ -122,17 +128,26 @@ output_file_path = os.path.join(project_dir, "models")
 os.makedirs(input_file_path, exist_ok=True)
 os.makedirs(output_file_path, exist_ok=True)
 
-
-
-
 @click.command()
 @click.option('--epochs', default=20, help='number of epochs')
 @click.option('--input_file_path', default=input_file_path, help='input file location (of train_nn.pck)')
 @click.option('--output_file_path', default=output_file_path, help='output folder (for model weights)')
 @click.option('--fold', default=0, help='fold to train')
+@click.option('--gpu', default=0, help='gpu to train')
 @click.option('--weights', default='', help='weights location')
 @click.option('--dropout', default=0.1, help='dropout rate')
-def main(input_file_path, output_file_path,fold,dropout,weights,epochs):
+
+
+def main(input_file_path, output_file_path,fold,gpu,dropout,weights,epochs):
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+    
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True  # dynamically grow the memory used on the GPU
+    config.log_device_placement = True  # to log device placement (on which device the operation ran)
+    sess = tf.Session(config=config)
+    set_session(sess)  # set this TensorFlow session as the default session for Keras
+
     n_splits = 5
     input_file_name = os.path.join(input_file_path, "train_nn.pck")
 
