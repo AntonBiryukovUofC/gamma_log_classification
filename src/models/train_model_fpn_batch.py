@@ -3,11 +3,17 @@ import os
 import pickle
 import sys
 
-sys.path.insert(0,'/home/anton/Repos/gamma_log_classification')
+sys.path.insert(0, './')
+
 import click
+
 from keras.callbacks import Callback, ModelCheckpoint
 from keras.optimizers import SGD
 from keras_contrib.callbacks import CyclicLR
+
+from keras.backend.tensorflow_backend import set_session
+import tensorflow as tf
+
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import KFold
 
@@ -130,6 +136,7 @@ os.makedirs(output_file_path, exist_ok=True)
 @click.option('--input_file_path', default=input_file_path, help='input file location (of train_nn.pck)')
 @click.option('--output_file_path', default=output_file_path, help='output folder (for model weights)')
 @click.option('--fold', default=0, help='fold to train')
+@click.option('--gpu', default=0, help='gpu to train')
 @click.option('--weights', default='', help='weights location')
 @click.option('--dropout', default=0.1, help='dropout rate')
 @click.option('--batch_size', default=8, help='batch size')
