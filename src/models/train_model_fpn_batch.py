@@ -153,7 +153,7 @@ def main(input_file_path, output_file_path,fold,dropout,weights,epochs):
     for k, (train_index, test_index) in enumerate(cv.split(X, y)):
         # Skip other than k-th fold
         if k!= fold:
-            next
+            continue
         X_train, X_holdout = X[train_index, :], X[test_index, :]
         y_train, y_holdout = y[train_index], y[test_index]
 
