@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
+import concurrent.futures
+import logging
 import os
 import pickle
-
-import pandas as pd
-import click
-import logging
 from pathlib import Path
+
 import numpy as np
-from sklearn.linear_model import LinearRegression
-import concurrent.futures
-from tqdm import tqdm
+import pandas as pd
 from scipy.signal import medfilt
+from tqdm import tqdm
 
 
 def fliplabel(x):

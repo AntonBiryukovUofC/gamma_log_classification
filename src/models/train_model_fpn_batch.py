@@ -132,7 +132,8 @@ os.makedirs(output_file_path, exist_ok=True)
 @click.option('--fold', default=0, help='fold to train')
 @click.option('--weights', default='', help='weights location')
 @click.option('--dropout', default=0.1, help='dropout rate')
-def main(input_file_path, output_file_path,fold,dropout,weights,epochs):
+@click.option('--batch_size', default=8, help='batch size')
+def main(input_file_path, output_file_path,fold,dropout,weights,epochs,batch_size):
     n_splits = 5
     input_file_name = os.path.join(input_file_path, "train_nn.pck")
 
@@ -157,7 +158,6 @@ def main(input_file_path, output_file_path,fold,dropout,weights,epochs):
         X_train, X_holdout = X[train_index, :], X[test_index, :]
         y_train, y_holdout = y[train_index], y[test_index]
 
-        batch_size = 8
         model_output_folder = os.path.join(output_file_path, f'fold_{k}')
         os.makedirs(model_output_folder,exist_ok=True)
         model_output_file = os.path.join(model_output_folder, "weights.{epoch:02d}-{val_acc:.4f}.hdf5")
