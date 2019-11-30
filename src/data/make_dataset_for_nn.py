@@ -40,13 +40,14 @@ def rescale_full_well_chain_to_new_df(df,n_wells=20,n_points=1100):
     df_slice_list = []
     for i in range(n_wells):
         gr = df_train_new['GR'].values[id_start[i]:(id_start[i]+n_points)]
+        label = df_train_new['label'].values[id_start[i]:(id_start[i]+n_points)]
         row_id = np.arange(n_points)
         well_id= i*np.ones_like(row_id)
-        df_slice = pd.DataFrame({'GR':gr,'row_id':row_id,'well_id':well_id})
+        df_slice = pd.DataFrame({'GR':gr,'row_id':row_id,'well_id':well_id,'label':label})
         df_slice_list.append(df_slice)
     df_slices = pd.concat(df_slice_list,axis=0)
     df_slices.index = np.arange(df_slices.shape[0])
-    return df_train_new
+    return df_slices
 
 
 
@@ -97,6 +98,7 @@ def preprocess_dataset_parallel(df, n_wells=50,n_wells_sliced = 5000):
         df.index = np.arange(df.shape[0])
     # Fakes
     list_df_wells_fakes = [df_sliced.loc[df_sliced['well_id'].isin([w]), :].copy() for w in wells_sliced]
+    print(len(list_df_wells_fakes))
     for df in list_df_wells_fakes:
         df.index = np.arange(df.shape[0])
 
@@ -184,7 +186,7 @@ def main(input_filepath, output_filepath):
     n_test = df_test['well_id'].unique().shape[0]
     n_train = df_train['well_id'].unique().shape[0]
     print(n_train)
-    data_dict = preprocess_dataset_parallel(df_train, n_wells=4000)
+    data_dict = preprocess_dataset_parallel(df_train, n_wells=4000,n_wells_sliced=8000)
     with open(fname_final_train, 'wb') as f:
         pickle.dump(data_dict, f)
 
