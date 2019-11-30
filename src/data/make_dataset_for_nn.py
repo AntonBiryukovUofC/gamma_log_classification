@@ -149,7 +149,7 @@ def preprocess_dataset_parallel(df, n_wells=50,n_wells_sliced = 5000):
     print(f'Shape with Fakes: {X_with_fake.shape}')
 
     data_dict = {'X': X_all, 'y': y_all, 'X_small': X, 'y_small': y, 'X_with_fake': X_with_fake,
-                 'y_with_fake': y_with_fake}
+                 'y_with_fake': y_with_fake,'X_fake_only':X_fake,'y_fake_only':y_fake}
 
     return data_dict
 
