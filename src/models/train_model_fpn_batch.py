@@ -21,6 +21,7 @@ from src.models.models import create_fcn__multiple_heads
 from pathlib import Path
 import numpy as np
 
+
 # gpus = tf.config.experimental.list_physical_devices('GPU')
 # if gpus:
 #     try:
@@ -129,8 +130,6 @@ os.makedirs(input_file_path, exist_ok=True)
 os.makedirs(output_file_path, exist_ok=True)
 
 
-
-
 @click.command()
 @click.option('--epochs', default=20, help='number of epochs')
 @click.option('--input_file_path', default=input_file_path, help='input file location (of train_nn.pck)')
@@ -140,8 +139,8 @@ os.makedirs(output_file_path, exist_ok=True)
 @click.option('--weights', default='', help='weights location')
 @click.option('--dropout', default=0.1, help='dropout rate')
 @click.option('--batch_size', default=8, help='batch size')
-@click.option('--cycles_per_epoch', default=4, help='cycles per epoch')
-def main(input_file_path, output_file_path,fold,dropout,weights,epochs,batch_size,gpu,cycles_per_epoch):
+@click.option('--epochs_per_cycle', default=4, help='cycles per epoch')
+def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle):
     n_splits = 5
     input_file_name = os.path.join(input_file_path, "train_nn.pck")
 
@@ -161,21 +160,22 @@ def main(input_file_path, output_file_path,fold,dropout,weights,epochs,batch_siz
     # clr = SGDRScheduler(min_lr=1e-2,max_lr=5e-1,steps_per_epoch=np.ceil(3200/32))
     for k, (train_index, test_index) in enumerate(cv.split(X, y)):
         # Skip other than k-th fold
-        if k!= fold:
+        if k != fold:
             continue
         X_train, X_holdout = X[train_index, :], X[test_index, :]
         y_train, y_holdout = y[train_index], y[test_index]
 
         model_output_folder = os.path.join(output_file_path, f'fold_{k}')
-        os.makedirs(model_output_folder,exist_ok=True)
+        os.makedirs(model_output_folder, exist_ok=True)
         model_output_file = os.path.join(model_output_folder, "weights.{epoch:02d}-{val_acc:.4f}.hdf5")
 
         model_checkpoint = ModelCheckpoint(model_output_file,
-            monitor='val_acc', verbose=0,
-            save_best_only=True, save_weights_only=False,
-            mode='auto', period=1)
+                                           monitor='val_acc', verbose=0,
+                                           save_best_only=True, save_weights_only=False,
+                                           mode='auto', period=1)
 
-        clr = CyclicLR(base_lr=1e-3, max_lr=4e-2, step_size=cycles_per_epoch * X_train.shape[0] / batch_size)
+        clr = CyclicLR(base_lr= 2e-4, max_lr=4e-2, step_size=epochs_per_cycle * X_train.shape[0] / batch_size,
+                       mode='triangular2')
 
         print(X_train.shape)
 
@@ -195,7 +195,6 @@ def main(input_file_path, output_file_path,fold,dropout,weights,epochs,batch_siz
             validation_data=(X_holdout, y_holdout),
         )
 
-
         pred = model.predict(X_holdout)
 
         score = accuracy_score(np.argmax(y_holdout, axis=2).flatten(), np.argmax(pred, axis=2).flatten())
@@ -212,4 +211,3 @@ def main(input_file_path, output_file_path,fold,dropout,weights,epochs,batch_siz
 
 if __name__ == "__main__":
     main()
-

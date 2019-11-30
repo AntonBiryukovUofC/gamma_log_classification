@@ -26,7 +26,7 @@ def preprocess_a_well(df_well):
 
     return x, y
 
-def rescale_full_well_chain_to_new_df(df,n_wells=20):
+def rescale_full_well_chain_to_new_df(df,n_wells=20,n_points=1100):
     df_train=df.copy()
     y0 = df_train[df_train['label'] == 0].groupby('well_id')['GR'].mean().to_frame()
     y2 = df_train[df_train['label'] == 2].groupby('well_id')['GR'].mean().to_frame()
@@ -36,7 +36,16 @@ def rescale_full_well_chain_to_new_df(df,n_wells=20):
     z0, z2 = 110, 50
     scale = (z0 - z2) / (df_train_new['GR_0'] - df_train_new['GR_2'])
     df_train_new['GR'] = (df_train_new['GR'] - df_train_new['GR_2']) * scale + z2
-
+    id_start = np.random.randint(0,df_train.shape[0]-n_points-1,size=n_wells)
+    df_slice_list = []
+    for i in range(n_wells):
+        gr = df_train_new['GR'].values[id_start[i]:(id_start[i]+n_points)]
+        row_id = np.arange(n_points)
+        well_id= i*np.ones_like(row_id)
+        df_slice = pd.DataFrame({'GR':gr,'row_id':row_id,'well_id':well_id})
+        df_slice_list.append(df_slice)
+    df_slices = pd.concat(df_slice_list,axis=0)
+    df_slices.index = np.arange(df_slices.shape[0])
     return df_train_new
 
 
@@ -76,14 +85,18 @@ def to_ohe(x):
     return y
 
 
-def preprocess_dataset_parallel(df, n_wells=50):
-    wells = df['well_id'].unique().tolist()[:n_wells]
+def preprocess_dataset_parallel(df, n_wells=50,n_wells_sliced = 5000):
+    df_sliced = rescale_full_well_chain_to_new_df(df,n_wells=n_wells_sliced)
 
+    wells = df['well_id'].unique().tolist()[:n_wells]
+    wells_sliced = df_sliced['well_id'].unique().tolist()
+
+    # originals
     list_df_wells = [df.loc[df['well_id'].isin([w]), :].copy() for w in wells]
     for df in list_df_wells:
         df.index = np.arange(df.shape[0])
-
-    list_df_wells_fakes = [df.loc[df['well_id'].isin([w]), :].copy() for w in 2 * wells]
+    # Fakes
+    list_df_wells_fakes = [df_sliced.loc[df_sliced['well_id'].isin([w]), :].copy() for w in wells_sliced]
     for df in list_df_wells_fakes:
         df.index = np.arange(df.shape[0])
 
