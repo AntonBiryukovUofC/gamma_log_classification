@@ -28,8 +28,8 @@ def preprocess_a_well(df_well):
 
 def rescale_full_well_chain_to_new_df(df,n_wells=20,n_points=1100):
     df_train=df.copy()
-    y0 = df_train[df_train['label'] == 0].groupby('well_id')['GR'].mean().to_frame()
-    y2 = df_train[df_train['label'] == 2].groupby('well_id')['GR'].mean().to_frame()
+    y0 = df_train[df_train['label'] == 0].groupby('well_id')['GR'].median().to_frame()
+    y2 = df_train[df_train['label'] == 2].groupby('well_id')['GR'].median().to_frame()
 
     df_train_new = df_train.copy().join(y0.reset_index(), rsuffix='_0', on='well_id').drop(columns='well_id_0')
     df_train_new = df_train_new.join(y2.reset_index(), rsuffix='_2', on='well_id').drop(columns='well_id_2')
@@ -38,15 +38,20 @@ def rescale_full_well_chain_to_new_df(df,n_wells=20,n_points=1100):
     df_train_new['GR'] = (df_train_new['GR'] - df_train_new['GR_2']) * scale + z2
     id_start = np.random.randint(0,df_train.shape[0]-n_points-1,size=n_wells)
     df_slice_list = []
+    dropped_count=0
     for i in range(n_wells):
         gr = df_train_new['GR'].values[id_start[i]:(id_start[i]+n_points)]
         label = df_train_new['label'].values[id_start[i]:(id_start[i]+n_points)]
         row_id = np.arange(n_points)
         well_id= i*np.ones_like(row_id)
         df_slice = pd.DataFrame({'GR':gr,'row_id':row_id,'well_id':well_id,'label':label})
-        df_slice_list.append(df_slice)
+        if df_slice['GR'].isna().sum() ==0:
+            df_slice_list.append(df_slice)
+        else:
+            dropped_count +=1
     df_slices = pd.concat(df_slice_list,axis=0)
     df_slices.index = np.arange(df_slices.shape[0])
+    print(f'Dropped {dropped_count} wells due to NaN in GR')
     return df_slices
 
 
@@ -126,6 +131,13 @@ def preprocess_dataset_parallel(df, n_wells=50,n_wells_sliced = 5000):
     y_fake = np.array([r[1] for r in results_fake])
     y_fake = to_ohe(y_fake)
     X_fake = np.reshape(X_fake, (X_fake.shape[0], X_fake.shape[1], 1))
+    idx_fake_nonna = np.logical_not(np.isnan(X_fake).any(axis=1))[:,0]
+
+    X_fake = X_fake[idx_fake_nonna,:]
+    y_fake = y_fake[idx_fake_nonna,:]
+
+
+
 
     X_all = np.concatenate((X, X_flipped))
     y_all = np.concatenate((y, y_flipped))
