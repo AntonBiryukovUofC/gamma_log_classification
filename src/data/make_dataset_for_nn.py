@@ -26,6 +26,32 @@ def preprocess_a_well(df_well):
 
     return x, y
 
+def rescale_full_well_chain_to_new_df(df,n_wells=20):
+    df_train=df.copy()
+    y0 = df_train[df_train['label'] == 0].groupby('well_id')['GR'].mean().to_frame()
+    y2 = df_train[df_train['label'] == 2].groupby('well_id')['GR'].mean().to_frame()
+
+    df_train_new = df_train.copy().join(y0.reset_index(), rsuffix='_0', on='well_id').drop(columns='well_id_0')
+    df_train_new = df_train_new.join(y2.reset_index(), rsuffix='_2', on='well_id').drop(columns='well_id_2')
+    z0, z2 = 110, 50
+    scale = (z0 - z2) / (df_train_new['GR_0'] - df_train_new['GR_2'])
+    df_train_new['GR'] = (df_train_new['GR'] - df_train_new['GR_2']) * scale + z2
+
+    return df_train_new
+
+
+
+def preprocess_a_well_fake(df_well):
+    y0 = np.mean(df_well[df_well['label'] == 0]['GR'])
+    y2 = np.mean(df_well[df_well['label'] == 2]['GR'])
+    z0, z2 = np.random.uniform(low=103, high=140, size=1), np.random.uniform(low=40, high=57, size=1)
+    scale = (z0 - z2) / (y0 - y2)
+    df_well['GR_leveled'] = (df_well['GR'] - y2) * scale + z2
+    x = df_well['GR_leveled'].values
+    y = df_well['label'].values
+
+    return x, y
+
 
 def preprocess_a_well_test(df_well):
     df_well['GR_medfilt'] = medfilt(df_well['GR'], 1)
@@ -52,8 +78,13 @@ def to_ohe(x):
 
 def preprocess_dataset_parallel(df, n_wells=50):
     wells = df['well_id'].unique().tolist()[:n_wells]
+
     list_df_wells = [df.loc[df['well_id'].isin([w]), :].copy() for w in wells]
     for df in list_df_wells:
+        df.index = np.arange(df.shape[0])
+
+    list_df_wells_fakes = [df.loc[df['well_id'].isin([w]), :].copy() for w in 2 * wells]
+    for df in list_df_wells_fakes:
         df.index = np.arange(df.shape[0])
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=10) as executor:
@@ -61,6 +92,10 @@ def preprocess_dataset_parallel(df, n_wells=50):
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=10) as executor:
         results_flipped = list(tqdm(executor.map(preprocess_a_well_flip, list_df_wells), total=len(list_df_wells)))
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers=10) as executor:
+        results_fake = list(
+            tqdm(executor.map(preprocess_a_well_fake, list_df_wells_fakes), total=len(list_df_wells_fakes)))
 
     X = np.array([r[0] for r in results])
     y = np.array([r[1] for r in results])
@@ -72,18 +107,34 @@ def preprocess_dataset_parallel(df, n_wells=50):
     y_flipped = to_ohe(y_flipped)
     X_flipped = np.reshape(X_flipped, (X_flipped.shape[0], X_flipped.shape[1], 1))
 
+    X_fake = np.array([r[0] for r in results_fake])
+    y_fake = np.array([r[1] for r in results_fake])
+    y_fake = to_ohe(y_fake)
+    X_fake = np.reshape(X_fake, (X_fake.shape[0], X_fake.shape[1], 1))
+
     X_all = np.concatenate((X, X_flipped))
     y_all = np.concatenate((y, y_flipped))
+
+    X_with_fake = np.concatenate((X, X_flipped, X_fake))
+    y_with_fake = np.concatenate((y, y_flipped, y_fake))
+
     np.random.seed(123)
     inds = np.arange(X_all.shape[0])
     np.random.shuffle(inds)
-
     X_all = X_all[inds, :, :]
     y_all = y_all[inds, :, :]
 
+    inds_with_fake = np.arange(X_with_fake.shape[0])
+    np.random.shuffle(inds_with_fake)
+    X_with_fake = X_with_fake[inds_with_fake, :, :]
+    y_with_fake = y_with_fake[inds_with_fake, :, :]
+
     print(X_all.shape)
     print(y_all.shape)
-    data_dict = {'X': X_all, 'y': y_all, 'X_small': X, 'y_small': y}
+    print(f'Shape with Fakes: {X_with_fake.shape}')
+
+    data_dict = {'X': X_all, 'y': y_all, 'X_small': X, 'y_small': y, 'X_with_fake': X_with_fake,
+                 'y_with_fake': y_with_fake}
 
     return data_dict
 

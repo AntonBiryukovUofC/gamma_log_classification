@@ -175,7 +175,7 @@ def main(input_file_path, output_file_path,fold,dropout,weights,epochs,batch_siz
             save_best_only=True, save_weights_only=False,
             mode='auto', period=1)
 
-        clr = CyclicLR(base_lr=1e-3, max_lr=4e-2, step_size=cycles_per_epoch * X_train.shape[0] / batch_size)
+        clr = CyclicLR(base_lr=2e-3, max_lr=4e-2, step_size=cycles_per_epoch * X_train.shape[0] / batch_size)
 
         print(X_train.shape)
 
