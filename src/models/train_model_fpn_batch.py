@@ -160,8 +160,11 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
     X_holdout = np.pad(X_holdout, pad_width=((0, 0), (2, 2), (0, 0)), mode='edge')
     y_holdout = np.pad(y_holdout, pad_width=((0, 0), (2, 2), (0, 0)), mode='edge')
 
-    X = (X - X.mean()) / X.std()
-    X_holdout = (X_holdout - X_holdout.mean()) / X_holdout.std()
+    X = X[:6000,:]
+    y = y[:6000, :,:]
+
+    #X = (X - X.mean()) / X.std()
+    #X_holdout = (X_holdout - X_holdout.mean()) / X_holdout.std()
 
     model_output_folder = os.path.join(output_file_path, f'fold_{k}')
     os.makedirs(model_output_folder, exist_ok=True)
@@ -176,7 +179,7 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
                    mode='triangular')
 
 
-    model = create_fcn__multiple_heads((X.shape[1], 1), init_power=6, kernel_size=(3, 7, 11), dropout=dropout)
+    model = create_fcn__multiple_heads((X.shape[1], 1), init_power=7, kernel_size=(3, 7, 11), dropout=dropout)
     # model = load_model('/home/anton/Repos/gamma_log_classification/models/weights.18-0.17.hdf5')
     model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.04),
                   metrics=['acc', 'categorical_crossentropy'])

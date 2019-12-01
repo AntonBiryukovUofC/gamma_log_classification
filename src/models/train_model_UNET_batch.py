@@ -152,7 +152,7 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
     with open(input_file_name, 'rb') as f:
         results = pickle.load(f)
 
-    X, y = results[f'data_dict_train_{k}']['X'], results[f'data_dict_train_{k}']['y']
+    X, y = results[f'data_dict_train_{k}']['X_with_fake'], results[f'data_dict_train_{k}']['y_with_fake']
     X = np.pad(X, pad_width=((0, 0), (2, 2), (0, 0)), mode='edge')
     y = np.pad(y, pad_width=((0, 0), (2, 2), (0, 0)), mode='edge')
 
