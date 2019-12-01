@@ -81,7 +81,7 @@ def create_normalized_gr(df_train):
     z0, z2 = 110, 60
     scale = (z0 - z2) / (df_train_new['GR_0'] - df_train_new['GR_2'])
     df_train_new['GR_leveled'] = (df_train_new['GR'] - df_train_new['GR_2']) * scale + z2
-    df_train_new.to_pickle('/home/geoanton/Repos/gamma_log_classification/data/processed/df_normalized_script.pck')
+    #df_train_new.to_pickle('/home/geoanton/Repos/gamma_log_classification/data/processed/df_normalized_script.pck')
 
     return df_train_new
 
