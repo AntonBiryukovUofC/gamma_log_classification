@@ -12,12 +12,39 @@ from sklearn.model_selection import GroupKFold
 from tqdm import tqdm
 
 
+
+
+
 def fliplabel(x):
     if x == 3:
         return 4
     if x == 4:
         return 3
     return x
+
+
+
+def preprocess_a_well_test(df_well):
+    df_well['GR_medfilt'] = medfilt(df_well['GR'], 1)
+    x = df_well['GR_medfilt'].values
+    return x
+
+
+def preprocess_a_well_flip(df_well):
+    df_well['gr_flipped'] = df_well['GR'].values[::-1]
+    df_well['label_flipped'] = df_well['label'].values[::-1]
+    df_well['label_flipped'] = df_well['label_flipped'].apply(lambda x: fliplabel(x))
+
+    x = df_well['gr_flipped'].values
+    y = df_well['label_flipped'].values
+
+    return x, y
+
+
+def to_ohe(x):
+    n_values = np.max(x) + 1
+    y = np.eye(n_values)[x]
+    return y
 
 
 def preprocess_a_well(df_well):
@@ -28,6 +55,16 @@ def preprocess_a_well(df_well):
     return x, y
 
 
+def preprocess_a_well_fake(df_well):
+    y0 = np.mean(df_well[df_well['label'] == 0]['GR'])
+    y2 = np.mean(df_well[df_well['label'] == 2]['GR'])
+    z0, z2 = np.random.uniform(low=103, high=140, size=1), np.random.uniform(low=40, high=57, size=1)
+    scale = (z0 - z2) / (y0 - y2)
+    df_well['GR_leveled'] = (df_well['GR'] - y2) * scale + z2
+    x = df_well['GR_leveled'].values
+    y = df_well['label'].values
+
+    return x, y
 
 
 def create_normalized_gr(df_train):
@@ -71,40 +108,14 @@ def create_new_wells_from_normalized(df, n_wells=20, n_points=1100):
     return df_slices
 
 
-def preprocess_a_well_fake(df_well):
-    y0 = np.mean(df_well[df_well['label'] == 0]['GR'])
-    y2 = np.mean(df_well[df_well['label'] == 2]['GR'])
-    z0, z2 = np.random.uniform(low=103, high=140, size=1), np.random.uniform(low=40, high=57, size=1)
-    scale = (z0 - z2) / (y0 - y2)
-    df_well['GR_leveled'] = (df_well['GR'] - y2) * scale + z2
-    x = df_well['GR_leveled'].values
-    y = df_well['label'].values
-
-    return x, y
-
-
-def preprocess_a_well_test(df_well):
-    df_well['GR_medfilt'] = medfilt(df_well['GR'], 1)
-    x = df_well['GR_medfilt'].values
-    return x
-
-
-def preprocess_a_well_flip(df_well):
-    df_well['gr_flipped'] = df_well['GR'].values[::-1]
-    df_well['label_flipped'] = df_well['label'].values[::-1]
-    df_well['label_flipped'] = df_well['label_flipped'].apply(lambda x: fliplabel(x))
-
-    x = df_well['gr_flipped'].values
-    y = df_well['label_flipped'].values
-
-    return x, y
-
-
-def to_ohe(x):
-    n_values = np.max(x) + 1
-    y = np.eye(n_values)[x]
-    return y
-
+def rescale_X_to_maxmin(X,note='note'):
+    logging.info(f'Performing a rescale on {note}..')
+    for i in range(X.shape[0]):
+        top = np.quantile(X[i,:],0.72)
+        bottom = 0.33 + 0.4*top
+        new_row = (X[i,:] -bottom)/(top-bottom)-0.5
+        X[i,:] = new_row
+    return X
 
 def preprocess_dataset_parallel(df, n_wells=50, n_wells_sliced=5000,df_normalized = None):
     df_sliced = create_new_wells_from_normalized(df, n_wells=n_wells_sliced)
@@ -184,6 +195,13 @@ def preprocess_dataset_parallel(df, n_wells=50, n_wells_sliced=5000,df_normalize
     print(y_all.shape)
     print(f'Shape with Fakes: {X_with_fake.shape}')
 
+    # TODO Added rescaling
+    # Rescaling
+    X_all = rescale_X_to_maxmin(X_all, note='all')
+    X_with_fake = rescale_X_to_maxmin(X_with_fake, note='with_Fake')
+    X_fake = rescale_X_to_maxmin(X_fake, note='fake_Only')
+
+
     data_dict = {'X': X_all, 'y': y_all, 'X_with_fake': X_with_fake,
                  'y_with_fake': y_with_fake, 'X_fake_only': X_fake, 'y_fake_only': y_fake}
 
@@ -202,10 +220,14 @@ def preprocess_dataset_test(df_test):
     X = np.array([r for r in results])
     X = np.reshape(X, (X.shape[0], X.shape[1], 1))
 
+    # TODO Added rescaling
+    X = rescale_X_to_maxmin(X, note='TEST')
     data_dict = {'X': X, 'df_test': df_test}
 
     return data_dict
 
+
+# TODO Make sure this spits out a rescaled dataset
 def preprocess_dataset_validation(df):
     wells = df['well_id'].unique().tolist()
 
@@ -221,6 +243,8 @@ def preprocess_dataset_validation(df):
     y = np.array([r[1] for r in results])
     y = to_ohe(y)
     X = np.reshape(X, (X.shape[0], X.shape[1], 1))
+
+    X = rescale_X_to_maxmin(X, note='VALIDATION')
     data_dict = {'X': X, 'y': y}
     return data_dict
 
