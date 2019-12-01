@@ -28,21 +28,35 @@ def preprocess_a_well(df_well):
     return x, y
 
 
-def rescale_full_well_chain_to_new_df(df, n_wells=20, n_points=1100):
-    df_train = df.copy()
-    y0 = df_train[df_train['label'] == 0].groupby('well_id')['GR'].median().to_frame()
-    y2 = df_train[df_train['label'] == 2].groupby('well_id')['GR'].median().to_frame()
 
-    df_train_new = df_train.copy().join(y0.reset_index(), rsuffix='_0', on='well_id').drop(columns='well_id_0')
-    df_train_new = df_train_new.join(y2.reset_index(), rsuffix='_2', on='well_id').drop(columns='well_id_2')
-    z0, z2 = 110, 50
+
+def create_normalized_gr(df_train):
+    x0 = df_train[df_train['label'] == 0].groupby('well_id')['GR'].median().to_frame()
+    x2 = df_train[df_train['label'] == 2].groupby('well_id')['GR'].median().to_frame()
+    df_train_new = df_train.copy()
+    #df_train_new = df_train.copy().join(x0.reset_index(), rsuffix='_0', on='well_id').drop(columns='well_id_0')
+    #df_train_new = df_train_new.join(x2.reset_index(), rsuffix='_2', on='well_id').drop(columns='well_id_2')
+    df_train_new = pd.merge(df_train_new, x0.reset_index(), on='well_id',
+                            suffixes=('', '_0'),how='left')  # .drop(columns ='well_id_0')
+    df_train_new = pd.merge(df_train_new, x2.reset_index(), on='well_id',
+                            suffixes=('', '_2'),how='left')  # .drop(columns ='well_id_0')
+
+    z0, z2 = 110, 60
     scale = (z0 - z2) / (df_train_new['GR_0'] - df_train_new['GR_2'])
-    df_train_new['GR'] = (df_train_new['GR'] - df_train_new['GR_2']) * scale + z2
-    id_start = np.random.randint(0, df_train.shape[0] - n_points - 1, size=n_wells)
+    df_train_new['GR_leveled'] = (df_train_new['GR'] - df_train_new['GR_2']) * scale + z2
+    df_train_new.to_pickle('/home/geoanton/Repos/gamma_log_classification/data/processed/df_normalized_script.pck')
+
+    return df_train_new
+
+
+def create_new_wells_from_normalized(df, n_wells=20, n_points=1100):
+
+    df_train_new = df.copy()
+    id_start = np.random.randint(0, df_train_new.shape[0] - n_points - 1, size=n_wells)
     df_slice_list = []
     dropped_count = 0
     for i in range(n_wells):
-        gr = df_train_new['GR'].values[id_start[i]:(id_start[i] + n_points)]
+        gr = df_train_new['GR_leveled'].values[id_start[i]:(id_start[i] + n_points)]
         label = df_train_new['label'].values[id_start[i]:(id_start[i] + n_points)]
         row_id = np.arange(n_points)
         well_id = i * np.ones_like(row_id)
@@ -92,9 +106,11 @@ def to_ohe(x):
     return y
 
 
-def preprocess_dataset_parallel(df, n_wells=50, n_wells_sliced=5000):
-    df_sliced = rescale_full_well_chain_to_new_df(df, n_wells=n_wells_sliced)
+def preprocess_dataset_parallel(df, n_wells=50, n_wells_sliced=5000,df_normalized = None):
+    df_sliced = create_new_wells_from_normalized(df, n_wells=n_wells_sliced)
 
+    #df_sliced.to_pickle(os.path.join(project_dir, 'data', 'processed','sliced_well.pck'))
+    #print('Saved sliced!')
     wells = df['well_id'].unique().tolist()[:n_wells]
     wells_sliced = df_sliced['well_id'].unique().tolist()
 
@@ -137,6 +153,16 @@ def preprocess_dataset_parallel(df, n_wells=50, n_wells_sliced=5000):
     X_fake = X_fake[idx_fake_nonna, :]
     y_fake = y_fake[idx_fake_nonna, :]
 
+    # Re-scale fake data to real data:
+    mu_fake = X_fake.mean()
+    std_fake = X_fake.std()
+    mu_real = X.mean()
+    std_real = X.std()
+    X_fake = (X_fake - mu_fake)/std_fake
+    X_fake =X_fake*std_real  +mu_real
+
+
+    # Tie together flipped and regular data
     X_all = np.concatenate((X, X_flipped))
     y_all = np.concatenate((y, y_flipped))
 
@@ -215,12 +241,22 @@ def main(input_filepath, output_filepath):
     n_train = df_train['well_id'].unique().shape[0]
     logger.info(f'Wells in train total = {n_train}')
     cv = GroupKFold(n_splits=5)
+    # make the normalized DF once:
+    df_normalized= create_normalized_gr(df_train)
+    #bring the normalized track into the original
+    df_train['GR_leveled'] = df_normalized['GR_leveled']
+
     for k, (train_index, test_index) in enumerate(cv.split(df_train, df_train['label'], df_train['well_id'])):
         fold_dict = {}
         fname_final_train = os.path.join(output_filepath, f'train_nn_{k}.pck')
         logger.info(f'Prepping fold {k}')
-        df_train_fold = df_train.iloc[train_index, :]
-        df_val_fold = df_train.iloc[test_index, :]
+
+        df_train_fold = df_train.iloc[train_index, :].copy()
+        df_train_fold.index = np.arange(df_train_fold.shape[0])
+
+        df_val_fold = df_train.iloc[test_index, :].copy()
+        df_val_fold.index = np.arange(df_val_fold.shape[0])
+
         n_wells_train = df_train_fold['well_id'].unique().shape[0]
         data_dict_train = preprocess_dataset_parallel(df_train_fold, n_wells=n_wells_train, n_wells_sliced=8000)
         data_dict_val = preprocess_dataset_validation(df_val_fold)
