@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy.signal import medfilt
+from sklearn.model_selection import GroupKFold
 from tqdm import tqdm
 
 
@@ -26,8 +27,9 @@ def preprocess_a_well(df_well):
 
     return x, y
 
-def rescale_full_well_chain_to_new_df(df,n_wells=20,n_points=1100):
-    df_train=df.copy()
+
+def rescale_full_well_chain_to_new_df(df, n_wells=20, n_points=1100):
+    df_train = df.copy()
     y0 = df_train[df_train['label'] == 0].groupby('well_id')['GR'].median().to_frame()
     y2 = df_train[df_train['label'] == 2].groupby('well_id')['GR'].median().to_frame()
 
@@ -36,24 +38,23 @@ def rescale_full_well_chain_to_new_df(df,n_wells=20,n_points=1100):
     z0, z2 = 110, 50
     scale = (z0 - z2) / (df_train_new['GR_0'] - df_train_new['GR_2'])
     df_train_new['GR'] = (df_train_new['GR'] - df_train_new['GR_2']) * scale + z2
-    id_start = np.random.randint(0,df_train.shape[0]-n_points-1,size=n_wells)
+    id_start = np.random.randint(0, df_train.shape[0] - n_points - 1, size=n_wells)
     df_slice_list = []
-    dropped_count=0
+    dropped_count = 0
     for i in range(n_wells):
-        gr = df_train_new['GR'].values[id_start[i]:(id_start[i]+n_points)]
-        label = df_train_new['label'].values[id_start[i]:(id_start[i]+n_points)]
+        gr = df_train_new['GR'].values[id_start[i]:(id_start[i] + n_points)]
+        label = df_train_new['label'].values[id_start[i]:(id_start[i] + n_points)]
         row_id = np.arange(n_points)
-        well_id= i*np.ones_like(row_id)
-        df_slice = pd.DataFrame({'GR':gr,'row_id':row_id,'well_id':well_id,'label':label})
-        if df_slice['GR'].isna().sum() ==0:
+        well_id = i * np.ones_like(row_id)
+        df_slice = pd.DataFrame({'GR': gr, 'row_id': row_id, 'well_id': well_id, 'label': label})
+        if df_slice['GR'].isna().sum() == 0:
             df_slice_list.append(df_slice)
         else:
-            dropped_count +=1
-    df_slices = pd.concat(df_slice_list,axis=0)
+            dropped_count += 1
+    df_slices = pd.concat(df_slice_list, axis=0)
     df_slices.index = np.arange(df_slices.shape[0])
     print(f'Dropped {dropped_count} wells due to NaN in GR')
     return df_slices
-
 
 
 def preprocess_a_well_fake(df_well):
@@ -91,8 +92,8 @@ def to_ohe(x):
     return y
 
 
-def preprocess_dataset_parallel(df, n_wells=50,n_wells_sliced = 5000):
-    df_sliced = rescale_full_well_chain_to_new_df(df,n_wells=n_wells_sliced)
+def preprocess_dataset_parallel(df, n_wells=50, n_wells_sliced=5000):
+    df_sliced = rescale_full_well_chain_to_new_df(df, n_wells=n_wells_sliced)
 
     wells = df['well_id'].unique().tolist()[:n_wells]
     wells_sliced = df_sliced['well_id'].unique().tolist()
@@ -131,13 +132,10 @@ def preprocess_dataset_parallel(df, n_wells=50,n_wells_sliced = 5000):
     y_fake = np.array([r[1] for r in results_fake])
     y_fake = to_ohe(y_fake)
     X_fake = np.reshape(X_fake, (X_fake.shape[0], X_fake.shape[1], 1))
-    idx_fake_nonna = np.logical_not(np.isnan(X_fake).any(axis=1))[:,0]
+    idx_fake_nonna = np.logical_not(np.isnan(X_fake).any(axis=1))[:, 0]
 
-    X_fake = X_fake[idx_fake_nonna,:]
-    y_fake = y_fake[idx_fake_nonna,:]
-
-
-
+    X_fake = X_fake[idx_fake_nonna, :]
+    y_fake = y_fake[idx_fake_nonna, :]
 
     X_all = np.concatenate((X, X_flipped))
     y_all = np.concatenate((y, y_flipped))
@@ -160,8 +158,8 @@ def preprocess_dataset_parallel(df, n_wells=50,n_wells_sliced = 5000):
     print(y_all.shape)
     print(f'Shape with Fakes: {X_with_fake.shape}')
 
-    data_dict = {'X': X_all, 'y': y_all, 'X_small': X, 'y_small': y, 'X_with_fake': X_with_fake,
-                 'y_with_fake': y_with_fake,'X_fake_only':X_fake,'y_fake_only':y_fake}
+    data_dict = {'X': X_all, 'y': y_all, 'X_with_fake': X_with_fake,
+                 'y_with_fake': y_with_fake, 'X_fake_only': X_fake, 'y_fake_only': y_fake}
 
     return data_dict
 
@@ -197,10 +195,21 @@ def main(input_filepath, output_filepath):
 
     n_test = df_test['well_id'].unique().shape[0]
     n_train = df_train['well_id'].unique().shape[0]
-    print(n_train)
-    data_dict = preprocess_dataset_parallel(df_train, n_wells=4000,n_wells_sliced=8000)
-    with open(fname_final_train, 'wb') as f:
-        pickle.dump(data_dict, f)
+    logger.info(f'Wells in train total = {n_train}')
+    cv = GroupKFold(n_splits=5)
+    for k, (train_index, test_index) in enumerate(cv.split(df_train, df_train['label'], df_train['well_id'])):
+        fold_dict = {}
+        fname_final_train = os.path.join(output_filepath, f'train_nn_{k}.pck')
+        logger.info(f'Prepping fold {k}')
+        df_train_fold = df_train.iloc[train_index, :]
+        df_val_fold = df_train.iloc[test_index, :]
+        n_wells_train = df_train_fold['well_id'].unique().shape[0]
+        data_dict_train = preprocess_dataset_parallel(df_train_fold, n_wells=n_wells_train, n_wells_sliced=8000)
+        data_dict_val = preprocess_dataset_test(df_val_fold)
+        fold_dict[f'data_dict_train_{k}'] = data_dict_train
+        fold_dict[f'data_dict_test_{k}'] = data_dict_val
+        with open(fname_final_train, 'wb') as f:
+            pickle.dump(fold_dict, f)
 
     data_dict_test = preprocess_dataset_test(df_test)
     with open(fname_final_test, 'wb') as f:

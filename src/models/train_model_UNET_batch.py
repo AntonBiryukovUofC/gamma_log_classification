@@ -142,68 +142,74 @@ os.makedirs(output_file_path, exist_ok=True)
 @click.option('--epochs_per_cycle', default=4, help='cycles per epoch')
 def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle):
     n_splits = 5
-    input_file_name = os.path.join(input_file_path, "train_nn.pck")
+    input_file_name = os.path.join(input_file_path, f"train_nn_{k}.pck")
 
     # input_file_name_test = os.path.join(input_file_path, "Test_final.pck")
     # output_file_name = os.path.join(output_file_path, f"models_lgbm.pck")
+    k = fold
 
     with open(input_file_name, 'rb') as f:
         results = pickle.load(f)
-    X, y = results['X_fake_only'], results['y_fake_only']
+
+    X, y = results[f'data_dict_train_{k}']['X_with_fake'], results[f'data_dict_train_{k}']['y_with_fake']
     X = np.pad(X, pad_width=((0, 0), (2, 2), (0, 0)), mode='edge')
     y = np.pad(y, pad_width=((0, 0), (2, 2), (0, 0)), mode='edge')
-    cv = KFold(n_splits)
+
+    X_holdout, y_holdout = results[f'data_dict_test_{k}']['X'], results[f'data_dict_test_{k}']['y']
+    X_holdout = np.pad(X_holdout, pad_width=((0, 0), (2, 2), (0, 0)), mode='edge')
+    y_holdout = np.pad(y_holdout, pad_width=((0, 0), (2, 2), (0, 0)), mode='edge')
+
+
+    logging.info(f'Shape of train: {X.shape}')
+    logging.info(f'Shape of val: {X_holdout.shape}')
+
     f1_scores = []
     scores = []
     X = (X - X.mean()) / X.std()
+    X_holdout = (X_holdout - X.mean()) / X.std()
 
     # clr = SGDRScheduler(min_lr=1e-2,max_lr=5e-1,steps_per_epoch=np.ceil(3200/32))
-    for k, (train_index, test_index) in enumerate(cv.split(X, y)):
         # Skip other than k-th fold
-        if k != fold:
-            continue
-        X_train, X_holdout = X[train_index, :], X[test_index, :]
-        y_train, y_holdout = y[train_index], y[test_index]
 
-        model_output_folder = os.path.join(output_file_path, f'Unet-fold_{k}')
-        os.makedirs(model_output_folder, exist_ok=True)
-        model_output_file = os.path.join(model_output_folder, "weights.{epoch:02d}-{val_acc:.4f}.hdf5")
+    model_output_folder = os.path.join(output_file_path, f'Unet-fold_{k}')
+    os.makedirs(model_output_folder, exist_ok=True)
+    model_output_file = os.path.join(model_output_folder, "weights.{epoch:02d}-{val_acc:.4f}.hdf5")
 
-        model_checkpoint = ModelCheckpoint(model_output_file,
-                                           monitor='val_acc', verbose=0,
-                                           save_best_only=True, save_weights_only=False,
-                                           mode='auto', period=1)
+    model_checkpoint = ModelCheckpoint(model_output_file,
+                                       monitor='val_acc', verbose=0,
+                                       save_best_only=True, save_weights_only=False,
+                                       mode='auto', period=1)
 
-        clr = CyclicLR(base_lr= 5e-2, max_lr=1e-1, step_size=epochs_per_cycle * X_train.shape[0] / batch_size,
-                       mode='triangular')
+    clr = CyclicLR(base_lr= 1e-2, max_lr=2e-1, step_size=epochs_per_cycle * X.shape[0] / batch_size,
+                   mode='triangular')
 
-        print(X_train.shape)
+    print(X.shape)
 
-        model = create_unet((X.shape[1], 1), init_power=5, kernel_size=5, dropout=dropout)
-        # model = load_model('/home/anton/Repos/gamma_log_classification/models/weights.18-0.17.hdf5')
-        model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.04),
-                      metrics=['acc', 'categorical_crossentropy'])
-        if weights != '':
-            model.load_weights(weights)
-        model.fit(
-            X_train,
-            y_train,
-            verbose=1,
-            epochs=epochs,
-            batch_size=batch_size,
-            callbacks=[model_checkpoint, clr],
-            validation_data=(X_holdout, y_holdout),
-        )
+    model = create_unet((X.shape[1], 1), init_power=5, kernel_size=5, dropout=dropout)
+    # model = load_model('/home/anton/Repos/gamma_log_classification/models/weights.18-0.17.hdf5')
+    model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.04),
+                  metrics=['acc', 'categorical_crossentropy'])
+    if weights != '':
+        model.load_weights(weights)
+    model.fit(
+        X,
+        y,
+        verbose=1,
+        epochs=epochs,
+        batch_size=batch_size,
+        callbacks=[model_checkpoint, clr],
+        validation_data=(X_holdout, y_holdout),
+    )
 
-        pred = model.predict(X_holdout)
+    pred = model.predict(X_holdout)
 
-        score = accuracy_score(np.argmax(y_holdout, axis=2).flatten(), np.argmax(pred, axis=2).flatten())
-        f1_sc = f1_score(np.argmax(y_holdout, axis=2).flatten(), np.argmax(pred, axis=2).flatten(), labels=[1, 2, 3, 4],
-                         average='weighted')
-        f1_scores.append(f1_sc)
-        scores.append(score)
+    score = accuracy_score(np.argmax(y_holdout, axis=2).flatten(), np.argmax(pred, axis=2).flatten())
+    f1_sc = f1_score(np.argmax(y_holdout, axis=2).flatten(), np.argmax(pred, axis=2).flatten(), labels=[1, 2, 3, 4],
+                     average='weighted')
+    f1_scores.append(f1_sc)
+    scores.append(score)
 
-        logging.info(f"{k} - Holdout score = {score}, f1 = {f1_sc}")
+    logging.info(f"{k} - Holdout score = {score}, f1 = {f1_sc}")
 
     logging.info(f" Holdout score = {np.mean(scores)} , std = {np.std(scores)}")
     logging.info(f" Holdout F1 score = {np.mean(f1_scores)} , std = {np.std(f1_scores)}")
