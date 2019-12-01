@@ -166,8 +166,8 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
 
     f1_scores = []
     scores = []
-    X = (X - X.mean()) / X.std()
-    X_holdout = (X_holdout - X.mean()) / X.std()
+    #X = (X - X.mean()) / X.std()
+    #X_holdout = (X_holdout - X.mean()) / X.std()
 
     # clr = SGDRScheduler(min_lr=1e-2,max_lr=5e-1,steps_per_epoch=np.ceil(3200/32))
         # Skip other than k-th fold
