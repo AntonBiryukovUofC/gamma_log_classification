@@ -180,6 +180,25 @@ def preprocess_dataset_test(df_test):
 
     return data_dict
 
+def preprocess_dataset_validation(df):
+    wells = df['well_id'].unique().tolist()
+
+    # originals
+    list_df_wells = [df.loc[df['well_id'].isin([w]), :].copy() for w in wells]
+    for df in list_df_wells:
+        df.index = np.arange(df.shape[0])
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers=10) as executor:
+        results = list(tqdm(executor.map(preprocess_a_well, list_df_wells), total=len(list_df_wells)))
+
+    X = np.array([r[0] for r in results])
+    y = np.array([r[1] for r in results])
+    y = to_ohe(y)
+    X = np.reshape(X, (X.shape[0], X.shape[1], 1))
+    data_dict = {'X': X, 'y': y}
+    return data_dict
+
+
 
 def main(input_filepath, output_filepath):
     """ Runs data processing scripts to turn raw data from (../raw) into
@@ -190,7 +209,6 @@ def main(input_filepath, output_filepath):
     df_train = pd.read_csv(os.path.join(input_filepath, 'train_lofi_rowid_Nov13.csv'))
     df_test = pd.read_csv(os.path.join(input_filepath, 'test_lofi_rowid_Nov13.csv'))
 
-    fname_final_train = os.path.join(output_filepath, 'train_nn.pck')
     fname_final_test = os.path.join(output_filepath, 'test_nn.pck')
 
     n_test = df_test['well_id'].unique().shape[0]
@@ -205,7 +223,7 @@ def main(input_filepath, output_filepath):
         df_val_fold = df_train.iloc[test_index, :]
         n_wells_train = df_train_fold['well_id'].unique().shape[0]
         data_dict_train = preprocess_dataset_parallel(df_train_fold, n_wells=n_wells_train, n_wells_sliced=8000)
-        data_dict_val = preprocess_dataset_test(df_val_fold)
+        data_dict_val = preprocess_dataset_validation(df_val_fold)
         fold_dict[f'data_dict_train_{k}'] = data_dict_train
         fold_dict[f'data_dict_test_{k}'] = data_dict_val
         with open(fname_final_train, 'wb') as f:

@@ -142,11 +142,12 @@ os.makedirs(output_file_path, exist_ok=True)
 @click.option('--epochs_per_cycle', default=4, help='cycles per epoch')
 def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle):
     n_splits = 5
+    k = fold
+    assert k<n_splits
     input_file_name = os.path.join(input_file_path, f"train_nn_{k}.pck")
 
     # input_file_name_test = os.path.join(input_file_path, "Test_final.pck")
     # output_file_name = os.path.join(output_file_path, f"models_lgbm.pck")
-    k = fold
 
     with open(input_file_name, 'rb') as f:
         results = pickle.load(f)
