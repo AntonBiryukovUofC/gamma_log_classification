@@ -61,7 +61,10 @@ def predict_with_mode(model, X_holdout, mode):
 @click.option('--batch_size', default=8, help='batch size')
 @click.option('--epochs_per_cycle', default=4, help='cycles per epoch')
 @click.option('--mode', default='regular', help='mode of training [regular,lr,ud]')
-def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle,mode):
+@click.option('--kernel_size', default=5, help='Kernel size')
+@click.option('--init_power', default=5, help='Num filters (power of 2) at the first Conv Layer')
+def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle,mode,kernel_size,
+         init_power):
     # For multi gpu support
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)    
@@ -123,7 +126,7 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
 
     print(X.shape)
 
-    model = create_unet((X.shape[1], 1), init_power=5, kernel_size=5, dropout=dropout)
+    model = create_unet((X.shape[1], 1), init_power=init_power, kernel_size=kernel_size, dropout=dropout)
     # model = load_model('/home/anton/Repos/gamma_log_classification/models/weights.18-0.17.hdf5')
     model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.04),
                   metrics=['acc', 'categorical_crossentropy'])
