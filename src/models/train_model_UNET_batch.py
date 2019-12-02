@@ -126,7 +126,7 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
     # clr = SGDRScheduler(min_lr=1e-2,max_lr=5e-1,steps_per_epoch=np.ceil(3200/32))
         # Skip other than k-th fold
 
-    model_output_folder = os.path.join(output_file_path, f'Unet-fold_{k}_mode_{mode}_kernel_{kernel_size}')
+    model_output_folder = os.path.join(output_file_path, f'Unet-fold_{k}_mode_{mode}')
     os.makedirs(model_output_folder, exist_ok=True)
     model_output_file = os.path.join(model_output_folder, "weights.{epoch:02d}-{val_acc:.4f}.hdf5")
 
