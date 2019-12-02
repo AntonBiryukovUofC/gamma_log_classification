@@ -226,6 +226,8 @@ def corr_with_parabolic(x, y):
     return res
 
 
+
+
 def corr_with_parabolic_grp(x):
     if x.shape[0] > 3:
 
@@ -335,9 +337,22 @@ def apply_grouped_functions(df, col='GR', groups='grp',
     return df[names]
 
 
+def rescale_gr(x,note='note'):
+    logging.info(f'Performing a rescale on {note}..')
+    top = np.quantile(x, 0.72)
+    bottom = 0.33 + 0.4 * top
+    new_row = (x - bottom) / (top - bottom) - 0.5
+    return new_row
+
+
 def preprocess_a_well(df_well, windows=[15, 30, 65]):
+    df_well['GR'] = rescale_gr(df_well['GR'].values)
+
     df_well['GR_medfilt'] = medfilt(df_well['GR'], 5)
     df_well['GR_medfilt_s'] = medfilt(df_well['GR'], 3)
+    # rescale GR:
+    #df_well['GR_medfilt_s'] = rescale_gr(df_well['GR_medfilt_s'].values)
+
     df_well['GR_diff_medfilt'] = df_well['GR_medfilt'].diff()
     df_well['GR_diff_scale'] = df_well['GR_medfilt'] - df_well['GR_medfilt_s']
     df_well['GR_diff_scale_large'] = medfilt(df_well['GR'], 3) - medfilt(df_well['GR_medfilt'], 31)

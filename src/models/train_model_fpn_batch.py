@@ -175,11 +175,11 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
                                        save_best_only=True, save_weights_only=False,
                                        mode='auto', period=1)
 
-    clr = CyclicLR(base_lr= 8e-3, max_lr=8e-2, step_size=epochs_per_cycle * X.shape[0] / batch_size,
-                   mode='triangular')
+    clr = CyclicLR(base_lr= 2e-3, max_lr=1e-2, step_size=epochs_per_cycle * X.shape[0] / batch_size,
+                   mode='triangular2')
 
 
-    model = create_fcn__multiple_heads((X.shape[1], 1), init_power=7, kernel_size=(3, 7, 11), dropout=dropout)
+    model = create_fcn__multiple_heads((X.shape[1], 1), init_power=6, kernel_size=(3, 7, 11), dropout=dropout)
     # model = load_model('/home/anton/Repos/gamma_log_classification/models/weights.18-0.17.hdf5')
     model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.04),
                   metrics=['acc', 'categorical_crossentropy'])
