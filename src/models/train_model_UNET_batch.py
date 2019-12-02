@@ -50,6 +50,20 @@ def predict_with_mode(model, X_holdout, mode):
     return pred
 
 
+def transform_holdout(X_holdout, y_holdout, mode):
+    if mode == 'regular':
+        X = X_holdout
+        y = y_holdout
+    if mode == 'lr':
+        X = np.fliplr(X_holdout)
+        y = np.fliplr(y_holdout)
+    if mode == 'ud':
+        X =X_holdout*(-1)
+        y = y_holdout
+
+    return X,y
+
+
 @click.command()
 @click.option('--epochs', default=20, help='number of epochs')
 @click.option('--input_file_path', default=input_file_path, help='input file location (of train_nn.pck)')
@@ -128,6 +142,8 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
 
     model = create_unet((X.shape[1], 1), init_power=init_power, kernel_size=kernel_size, dropout=dropout)
     # model = load_model('/home/anton/Repos/gamma_log_classification/models/weights.18-0.17.hdf5')
+    X_holdout_adjusted,y_holdout_adjusted = transform_holdout(X_holdout,y_holdout,mode = mode)
+
     model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.04),
                   metrics=['acc', 'categorical_crossentropy'])
     if weights != '':
@@ -139,7 +155,7 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
         epochs=epochs,
         batch_size=batch_size,
         callbacks=[model_checkpoint, clr],
-        validation_data=(X_holdout, y_holdout),
+        validation_data=(X_holdout_adjusted, y_holdout_adjusted),
     )
 
     pred = predict_with_mode(model,X_holdout,mode)
