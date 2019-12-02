@@ -135,7 +135,7 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
                                        save_best_only=True, save_weights_only=False,
                                        mode='auto', period=1)
 
-    clr = CyclicLR(base_lr= 5e-3, max_lr=7e-2, step_size=epochs_per_cycle * X.shape[0] / batch_size,
+    clr = CyclicLR(base_lr= 2e-3, max_lr=6e-2, step_size=epochs_per_cycle * X.shape[0] / batch_size,
                    mode='triangular')
 
     print(X.shape)
