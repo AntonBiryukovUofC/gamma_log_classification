@@ -128,6 +128,7 @@ os.makedirs(output_file_path, exist_ok=True)
 @click.option('--batch_size', default=8, help='batch size')
 @click.option('--epochs_per_cycle', default=4, help='cycles per epoch')
 def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle):
+    # For multi gpu support
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)    
 
