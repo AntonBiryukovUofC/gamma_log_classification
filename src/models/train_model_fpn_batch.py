@@ -22,19 +22,6 @@ from pathlib import Path
 import numpy as np
 
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-if gpus:
-    try:
-        # Currently, memory growth needs to be the same across GPUs
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-    except RuntimeError as e:
-        # Memory growth must be set before GPUs have been initialized
-        print(e)
-
-
 class SGDRScheduler(Callback):
     '''Cosine annealing learning rate scheduler with periodic restarts.
     # Usage
@@ -141,6 +128,21 @@ os.makedirs(output_file_path, exist_ok=True)
 @click.option('--batch_size', default=8, help='batch size')
 @click.option('--epochs_per_cycle', default=4, help='cycles per epoch')
 def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle):
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
+
     n_splits = 5
     k = fold
     assert k < n_splits
@@ -160,8 +162,8 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
     X_holdout = np.pad(X_holdout, pad_width=((0, 0), (2, 2), (0, 0)), mode='edge')
     y_holdout = np.pad(y_holdout, pad_width=((0, 0), (2, 2), (0, 0)), mode='edge')
 
-    X = X[:6000,:]
-    y = y[:6000, :,:]
+    # X = X[:6000,:]
+    # y = y[:6000, :,:]
 
     #X = (X - X.mean()) / X.std()
     #X_holdout = (X_holdout - X_holdout.mean()) / X_holdout.std()
