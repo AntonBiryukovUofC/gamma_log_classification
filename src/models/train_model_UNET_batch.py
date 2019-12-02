@@ -22,86 +22,6 @@ from pathlib import Path
 import numpy as np
 
 
-class SGDRScheduler(Callback):
-    '''Cosine annealing learning rate scheduler with periodic restarts.
-    # Usage
-        ```python
-            schedule = SGDRScheduler(min_lr=1e-5,
-                                     max_lr=1e-2,
-                                     steps_per_epoch=np.ceil(epoch_size/batch_size),
-                                     lr_decay=0.9,
-                                     cycle_length=5,
-                                     mult_factor=1.5)
-            model.fit(X_train, Y_train, epochs=100, callbacks=[schedule])
-        ```
-    # Arguments
-        min_lr: The lower bound of the learning rate range for the experiment.
-        max_lr: The upper bound of the learning rate range for the experiment.
-        steps_per_epoch: Number of mini-batches in the dataset. Calculated as `np.ceil(epoch_size/batch_size)`.
-        lr_decay: Reduce the max_lr after the completion of each cycle.
-                  Ex. To reduce the max_lr by 20% after each cycle, set this value to 0.8.
-        cycle_length: Initial number of epochs in a cycle.
-        mult_factor: Scale epochs_to_restart after each full cycle completion.
-    # References
-        Blog post: jeremyjordan.me/nn-learning-rate
-        Original paper: http://arxiv.org/abs/1608.03983
-    '''
-
-    def __init__(self,
-                 min_lr,
-                 max_lr,
-                 steps_per_epoch,
-                 lr_decay=1,
-                 cycle_length=10,
-                 mult_factor=2):
-
-        self.min_lr = min_lr
-        self.max_lr = max_lr
-        self.lr_decay = lr_decay
-
-        self.batch_since_restart = 0
-        self.next_restart = cycle_length
-
-        self.steps_per_epoch = steps_per_epoch
-
-        self.cycle_length = cycle_length
-        self.mult_factor = mult_factor
-
-        self.history = {}
-
-    def clr(self):
-        '''Calculate the learning rate.'''
-        fraction_to_restart = self.batch_since_restart / (self.steps_per_epoch * self.cycle_length)
-        lr = self.min_lr + 0.5 * (self.max_lr - self.min_lr) * (1 + np.cos(fraction_to_restart * np.pi))
-        return lr
-
-    def on_train_begin(self, logs={}):
-        '''Initialize the learning rate to the minimum value at the start of training.'''
-        logs = logs or {}
-        K.set_value(self.model.optimizer.lr, self.max_lr)
-
-    def on_batch_end(self, batch, logs={}):
-        '''Record previous batch statistics and update the learning rate.'''
-        logs = logs or {}
-        self.history.setdefault('lr', []).append(K.get_value(self.model.optimizer.lr))
-        for k, v in logs.items():
-            self.history.setdefault(k, []).append(v)
-
-        self.batch_since_restart += 1
-        K.set_value(self.model.optimizer.lr, self.clr())
-
-    def on_epoch_end(self, epoch, logs={}):
-        '''Check for end of current cycle, apply restarts when necessary.'''
-        if epoch + 1 == self.next_restart:
-            self.batch_since_restart = 0
-            self.cycle_length = np.ceil(self.cycle_length * self.mult_factor)
-            self.next_restart += self.cycle_length
-            self.max_lr *= self.lr_decay
-            self.best_weights = self.model.get_weights()
-
-    def on_train_end(self, logs={}):
-        '''Set weights to the values from the end of the most recent cycle for best performance.'''
-        self.model.set_weights(self.best_weights)
 
 
 project_dir = Path(__file__).resolve().parents[2]
@@ -117,6 +37,19 @@ os.makedirs(input_file_path, exist_ok=True)
 os.makedirs(output_file_path, exist_ok=True)
 
 
+def predict_with_mode(model, X_holdout, mode):
+    if mode == 'regular':
+        pred = model.predict(X_holdout)
+    if mode == 'lr':
+        pred = model.predict(np.fliplr(X_holdout))
+        pred = np.fliplr(pred)
+    if mode == 'ud':
+        pred = model.predict(X_holdout*(-1))
+        pred = pred
+
+    return pred
+
+
 @click.command()
 @click.option('--epochs', default=20, help='number of epochs')
 @click.option('--input_file_path', default=input_file_path, help='input file location (of train_nn.pck)')
@@ -127,7 +60,8 @@ os.makedirs(output_file_path, exist_ok=True)
 @click.option('--dropout', default=0.1, help='dropout rate')
 @click.option('--batch_size', default=8, help='batch size')
 @click.option('--epochs_per_cycle', default=4, help='cycles per epoch')
-def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle):
+@click.option('--mode', default='regular', help='mode of training [regular,lr,ud]')
+def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle,mode):
     # For multi gpu support
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)    
@@ -147,7 +81,7 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
     n_splits = 5
     k = fold
     assert k<n_splits
-    input_file_name = os.path.join(input_file_path, f"train_nn_{k}.pck")
+    input_file_name = os.path.join(input_file_path, f"{mode}_train_nn_{k}.pck")
 
     # input_file_name_test = os.path.join(input_file_path, "Test_final.pck")
     # output_file_name = os.path.join(output_file_path, f"models_lgbm.pck")
@@ -175,7 +109,7 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
     # clr = SGDRScheduler(min_lr=1e-2,max_lr=5e-1,steps_per_epoch=np.ceil(3200/32))
         # Skip other than k-th fold
 
-    model_output_folder = os.path.join(output_file_path, f'Unet-fold_{k}')
+    model_output_folder = os.path.join(output_file_path, f'Unet-fold_{k}_mode_{mode}')
     os.makedirs(model_output_folder, exist_ok=True)
     model_output_file = os.path.join(model_output_folder, "weights.{epoch:02d}-{val_acc:.4f}.hdf5")
 
@@ -205,7 +139,7 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
         validation_data=(X_holdout, y_holdout),
     )
 
-    pred = model.predict(X_holdout)
+    pred = predict_with_mode(model,X_holdout,mode)
 
     score = accuracy_score(np.argmax(y_holdout, axis=2).flatten(), np.argmax(pred, axis=2).flatten())
     f1_sc = f1_score(np.argmax(y_holdout, axis=2).flatten(), np.argmax(pred, axis=2).flatten(), labels=[1, 2, 3, 4],
