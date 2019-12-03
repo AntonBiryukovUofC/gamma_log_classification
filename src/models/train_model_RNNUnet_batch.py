@@ -77,8 +77,13 @@ def transform_holdout(X_holdout, y_holdout, mode):
 @click.option('--mode', default='regular', help='mode of training [regular,lr,ud]')
 @click.option('--kernel_size', default=5, help='Kernel size')
 @click.option('--init_power', default=5, help='Num filters (power of 2) at the first Conv Layer')
+@click.option('--lr_base', default=3e-3, help='Num filters (power of 2) at the first Conv Layer')
+@click.option('--lr_top', default=4e-2, help='Num filters (power of 2) at the first Conv Layer')
 def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle,mode,kernel_size,
-         init_power):
+         init_power,
+         lr_base,
+         lr_top
+         ):
     # For multi gpu support
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)    
@@ -135,7 +140,7 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
                                        save_best_only=True, save_weights_only=False,
                                        mode='auto', period=1)
 
-    clr = CyclicLR(base_lr= 3e-3, max_lr=4e-2, step_size=epochs_per_cycle * X.shape[0] / batch_size,
+    clr = CyclicLR(base_lr=lr_base, max_lr=lr_top, step_size=epochs_per_cycle * X.shape[0] / batch_size,
                    mode='triangular')
 
     print(X.shape)
