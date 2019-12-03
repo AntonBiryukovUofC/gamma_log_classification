@@ -52,6 +52,17 @@ def tta_predict(model, X_holdout):
 
     return pred
 
+def predict_with_mode(model, X_holdout, mode):
+    if mode == 'regular':
+        pred = model.predict(X_holdout)
+    if mode == 'lr':
+        pred = model.predict(np.fliplr(X_holdout))
+        pred = np.fliplr(pred)
+    if mode == 'ud':
+        pred = model.predict(X_holdout*(-1))
+        pred = pred
+
+    return pred
 
 
 def prepare_test(pred_test, df_test):
