@@ -89,8 +89,8 @@ def add_channels(X, kernel_size=5):
 @click.option('--mode', default='regular', help='mode of training [regular,lr,ud]')
 @click.option('--kernel_size', default=5, help='Kernel size')
 @click.option('--init_power', default=5, help='Num filters (power of 2) at the first Conv Layer')
-@click.option('--lr_base', default=3e-3, help='Num filters (power of 2) at the first Conv Layer')
-@click.option('--lr_top', default=4e-2, help='Num filters (power of 2) at the first Conv Layer')
+@click.option('--lr_base', default=3e-3, help='LR base')
+@click.option('--lr_top', default=4e-2, help='LR top')
 def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle, mode,
          kernel_size,
          init_power,
