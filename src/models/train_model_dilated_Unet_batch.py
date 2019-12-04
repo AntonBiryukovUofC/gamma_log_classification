@@ -83,7 +83,8 @@ def transform_holdout(X_holdout, y_holdout, mode):
 def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle,mode,kernel_size,
          init_power,
          lr_base,
-         lr_top
+         lr_top,
+         n_block
          ):
     # For multi gpu support
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
