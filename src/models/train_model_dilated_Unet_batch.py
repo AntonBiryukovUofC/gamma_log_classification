@@ -3,8 +3,6 @@ import os
 import pickle
 import sys
 
-from scipy.signal import medfilt
-
 sys.path.insert(0, './')
 
 import click
@@ -12,17 +10,19 @@ import click
 from keras.callbacks import Callback, ModelCheckpoint
 from keras.optimizers import SGD
 from keras_contrib.callbacks import CyclicLR
-from keras.losses import categorical_crossentropy
+
 from keras.backend.tensorflow_backend import set_session
 import tensorflow as tf
 
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import KFold
 
-from src.models.models import create_fcn__multiple_heads, create_unet, create_unet_bidirectRNN, \
-     weightedLoss
+from src.models.models import create_fcn__multiple_heads, create_unet, create_unet_bidirectRNN, get_dilated_unet
 from pathlib import Path
 import numpy as np
+
+
+
 
 project_dir = Path(__file__).resolve().parents[2]
 
@@ -44,7 +44,7 @@ def predict_with_mode(model, X_holdout, mode):
         pred = model.predict(np.fliplr(X_holdout))
         pred = np.fliplr(pred)
     if mode == 'ud':
-        pred = model.predict(X_holdout * (-1))
+        pred = model.predict(X_holdout*(-1))
         pred = pred
 
     return pred
@@ -58,25 +58,10 @@ def transform_holdout(X_holdout, y_holdout, mode):
         X = np.fliplr(X_holdout)
         y = np.fliplr(y_holdout)
     if mode == 'ud':
-        X = X_holdout * (-1)
+        X = X_holdout*(-1)
         y = y_holdout
 
-    return X, y
-
-
-def add_channels(X, kernel_size=5):
-    X_new = np.zeros((X.shape[0], X.shape[1], 3))
-    X_new[:, :, 0] = X[:, :, 0]
-    rows = X.shape[0]
-    # steps = X.shape[1]
-    # Add median filtered
-    for i in range(rows):
-        new_row = medfilt(X[i, :, 0], kernel_size)
-        X_new[i, :, 1] = medfilt(X[i, :, 0], kernel_size)
-    # Add residuals
-    for i in range(rows):
-        X_new[i, :, 2] = X_new[i, :, 0] - X_new[i, :, 1]
-    return X_new
+    return X,y
 
 
 @click.command()
@@ -94,14 +79,14 @@ def add_channels(X, kernel_size=5):
 @click.option('--init_power', default=5, help='Num filters (power of 2) at the first Conv Layer')
 @click.option('--lr_base', default=3e-3, help='LR base')
 @click.option('--lr_top', default=4e-2, help='LR top')
-def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle, mode,
-         kernel_size,
+def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle,mode,kernel_size,
          init_power,
          lr_base,
-         lr_top):
+         lr_top
+         ):
     # For multi gpu support
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)    
 
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if gpus:
@@ -117,7 +102,7 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
 
     n_splits = 5
     k = fold
-    assert k < n_splits
+    assert k<n_splits
     input_file_name = os.path.join(input_file_path, f"{mode}_train_nn_{k}.pck")
 
     # input_file_name_test = os.path.join(input_file_path, "Test_final.pck")
@@ -134,22 +119,19 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
     X_holdout = np.pad(X_holdout, pad_width=((0, 0), (2, 2), (0, 0)), mode='edge')
     y_holdout = np.pad(y_holdout, pad_width=((0, 0), (2, 2), (0, 0)), mode='edge')
 
-    # Add three channels - the median fitlered, and the diffs:
-    X = add_channels(X, kernel_size=5)
-    X_holdout = add_channels(X_holdout, kernel_size=5)
 
     logging.info(f'Shape of train: {X.shape}')
     logging.info(f'Shape of val: {X_holdout.shape}')
 
     f1_scores = []
     scores = []
-    # X = (X - X.mean()) / X.std()
-    # X_holdout = (X_holdout - X.mean()) / X.std()
+    #X = (X - X.mean()) / X.std()
+    #X_holdout = (X_holdout - X.mean()) / X.std()
 
     # clr = SGDRScheduler(min_lr=1e-2,max_lr=5e-1,steps_per_epoch=np.ceil(3200/32))
-    # Skip other than k-th fold
+        # Skip other than k-th fold
 
-    model_output_folder = os.path.join(output_file_path, f'MI-RNNUnet-fold_{k}_mode_{mode}')
+    model_output_folder = os.path.join(output_file_path, f'dil-Unet-fold_{k}_mode_{mode}')
     os.makedirs(model_output_folder, exist_ok=True)
     model_output_file = os.path.join(model_output_folder, "weights.{epoch:02d}-{val_acc:.4f}.hdf5")
 
@@ -162,16 +144,19 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
                    mode='triangular')
 
     print(X.shape)
+    model = get_dilated_unet(
+            input_shape=(X.shape[1], 1),
+            mode='cascade',
+            filters=32,
+            n_block=3)
 
-    model = create_unet_bidirectRNN((X.shape[1], 3), init_power=init_power, kernel_size=kernel_size, dropout=dropout)
     # model = load_model('/home/anton/Repos/gamma_log_classification/models/weights.18-0.17.hdf5')
-    X_holdout_adjusted, y_holdout_adjusted = transform_holdout(X_holdout, y_holdout, mode=mode)
+    X_holdout_adjusted,y_holdout_adjusted = transform_holdout(X_holdout,y_holdout,mode = mode)
 
-    loss =weightedLoss(categorical_crossentropy,[1,5,3,5,5])
-    model.compile(loss=loss, optimizer=SGD(lr=0.04),
+    model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.04),
                   metrics=['acc', 'categorical_crossentropy'])
     if weights != '':
-        model.load_weights(weights, by_name=True)
+        model.load_weights(weights)
     model.fit(
         X,
         y,
@@ -182,7 +167,7 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
         validation_data=(X_holdout_adjusted, y_holdout_adjusted),
     )
 
-    pred = predict_with_mode(model, X_holdout, mode)
+    pred = predict_with_mode(model,X_holdout,mode)
 
     score = accuracy_score(np.argmax(y_holdout, axis=2).flatten(), np.argmax(pred, axis=2).flatten())
     f1_sc = f1_score(np.argmax(y_holdout, axis=2).flatten(), np.argmax(pred, axis=2).flatten(), labels=[1, 2, 3, 4],
