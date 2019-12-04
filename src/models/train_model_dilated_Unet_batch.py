@@ -79,6 +79,7 @@ def transform_holdout(X_holdout, y_holdout, mode):
 @click.option('--init_power', default=5, help='Num filters (power of 2) at the first Conv Layer')
 @click.option('--lr_base', default=3e-3, help='LR base')
 @click.option('--lr_top', default=4e-2, help='LR top')
+@click.option('--n_block', default=3, help='Number of blocks in encoder | decoder')
 def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle,mode,kernel_size,
          init_power,
          lr_base,
@@ -148,7 +149,10 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
             input_shape=(X.shape[1], 1),
             mode='cascade',
             filters=32,
-            n_block=3)
+            n_block=n_block,
+            kernel_size=kernel_size,
+            dropout=dropout,
+            depth=6)
 
     # model = load_model('/home/anton/Repos/gamma_log_classification/models/weights.18-0.17.hdf5')
     X_holdout_adjusted,y_holdout_adjusted = transform_holdout(X_holdout,y_holdout,mode = mode)

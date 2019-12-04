@@ -396,14 +396,17 @@ def get_dilated_unet(
         input_shape=(1104,3),
         mode='cascade',
         filters=32,
-        n_block=3
+        n_block=3,
+        kernel_size =5,
+        dropout=0.1,
+        depth=6
 
 ):
     inputs = Input(input_shape)
 
-    enc, skip = encoder(inputs, filters, n_block)
-    bottle = bottleneck(enc, filters_bottleneck=filters * 2 ** n_block, mode=mode)
-    dec = decoder(bottle, skip, filters, n_block)
+    enc, skip = encoder(inputs, filters, n_block,kernel_size=kernel_size,dropout=dropout)
+    bottle = bottleneck(enc, filters_bottleneck=filters * 2 ** n_block, mode=mode,kernel_size=kernel_size,depth=depth)
+    dec = decoder(bottle, skip, filters, n_block,kernel_size=kernel_size,dropout=dropout)
     classify = Conv1D(5, 1, activation='softmax')(dec)
 
     model = Model(inputs=inputs, outputs=classify)
