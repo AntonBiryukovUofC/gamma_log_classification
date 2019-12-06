@@ -60,13 +60,6 @@ def predict_with_mode(model, X_holdout, mode):
         pred = np.fliplr(pred)
     if mode == 'ud':
         pred = model.predict(X_holdout*(-1))
-        tmp_3 =pred[:,:,3].copy()
-        tmp_0 = pred[:, :, 0].copy()
-
-        pred[:,:,3] = pred[:,:,4]
-        pred[:, :, 4] = tmp_3
-        pred[:,:,0] = pred[:,:,2]
-        pred[:, :, 2] = tmp_0
 
 
     return pred
@@ -96,11 +89,29 @@ def main(input_file_path, output_file_path, n_splits=5):
     X_test = np.pad(X_test, pad_width=((0, 0), (2, 2), (0, 0)), mode='edge')
 
     fold_models = {0:{'lr':f'/home/anton/tmp_unets/fold0/unet-lr.hdf5',
-                   'regular':f'/home/anton/tmp_unets/fold0/unet-regular.hdf5'},
-                   1:{'lr':f'/home/anton/tmp_unets/fold1/unet-lr.hdf5',
-                   'regular':f'/home/anton/tmp_unets/fold1/unet-regular.hdf5'},
-                   2:{'lr':f'/home/anton/tmp_unets/fold2/unet-lr.hdf5',
-                   'regular':f'/home/anton/tmp_unets/fold2/unet-regular.hdf5'}}
+                    'regular':f'/home/anton/tmp_unets/fold0/unet-regular.hdf5',
+                       'ud':f'/home/anton/tmp_unets/fold0/unet-ud.hdf5'},
+
+                    1:{'lr':f'/home/anton/tmp_unets/fold1/unet-lr.hdf5',
+                    'regular':f'/home/anton/tmp_unets/fold1/unet-regular.hdf5'},
+
+                    2:{'lr':f'/home/anton/tmp_unets/fold2/unet-lr.hdf5',
+                    'regular':f'/home/anton/tmp_unets/fold2/unet-regular.hdf5'},
+
+                    3: {'lr': f'/home/anton/tmp_unets/fold3/unet-lr.hdf5',
+                    'regular': f'/home/anton/tmp_unets/fold3/unet-regular.hdf5',
+                        'ud':f'/home/anton/tmp_unets/fold3/unet-ud.hdf5'},
+
+                    4: {'lr': f'/home/anton/tmp_unets/fold4/unet-lr.hdf5',
+                        'regular': f'/home/anton/tmp_unets/fold4/unet-regular.hdf5',
+                        'ud': f'/home/anton/tmp_unets/fold4/unet-ud.hdf5'}}
+
+
+#fold_models = {0:{'ud':f'/home/anton/tmp_unets/fold0/unet-ud.hdf5'}}
+    #fold_models = {0:{'regular':f'/home/anton/tmp_unets/fold0/unet-regular.hdf5'}}
+    #fold_models = {0:{'regular':f'/home/anton/tmp_unets/fold0/unet-regular.hdf5',
+     #                 'ud':f'/home/anton/tmp_unets/fold0/unet-ud.hdf5'}}
+
     preds_test_all = np.zeros((X_test.shape[0],X_test.shape[1],5))
     for k in fold_models.keys():
         #model = create_unet((X_test.shape[1], 1), init_power=5, kernel_size=5, dropout=0.1)

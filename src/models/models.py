@@ -1,46 +1,47 @@
-from keras import Input, Model
-from keras.layers import Conv1D, Dropout, MaxPooling1D, UpSampling1D, concatenate, Average, Bidirectional, LSTM, \
-    CuDNNLSTM, CuDNNGRU, ReLU, BatchNormalization,add,Add
-from keras.optimizers import SGD
-import tensorflow.keras.backend as K
 import numpy as np
+import tensorflow.keras.backend as K
+from keras import Sequential
+from keras.layers import (
+    Activation, Add, Conv1D, Dense, Flatten, Input, Multiply, LSTM, CuDNNGRU)
+from keras.layers import Dropout, MaxPooling1D, UpSampling1D, concatenate, Average, Bidirectional, CuDNNLSTM, ReLU, add
+from keras.models import Model
+from keras.optimizers import SGD
+
+
 def weightedLoss(originalLossFunc, weightsList):
-
     def lossFunc(true, pred):
+        axis = -1  # if channels last
+        # axis=  1 #if channels first
 
-        axis = -1 #if channels last
-        #axis=  1 #if channels first
-
-
-        #argmax returns the index of the element with the greatest value
-        #done in the class axis, it returns the class index
+        # argmax returns the index of the element with the greatest value
+        # done in the class axis, it returns the class index
         classSelectors = K.argmax(true, axis=axis)
 
-        #considering weights are ordered by class, for each class
-        #true(1) if the class index is equal to the weight index
+        # considering weights are ordered by class, for each class
+        # true(1) if the class index is equal to the weight index
         one64 = np.ones(1, dtype=np.int64)
         classSelectors = [K.equal(one64[0] * i, classSelectors) for i in range(len(weightsList))]
-        #casting boolean to float for calculations
-        #each tensor in the list contains 1 where ground true class is equal to its index
-        #if you sum all these, you will get a tensor full of ones.
+        # casting boolean to float for calculations
+        # each tensor in the list contains 1 where ground true class is equal to its index
+        # if you sum all these, you will get a tensor full of ones.
         classSelectors = [K.cast(x, K.floatx()) for x in classSelectors]
 
-        #for each of the selections above, multiply their respective weight
-        weights = [sel * w for sel,w in zip(classSelectors, weightsList)]
+        # for each of the selections above, multiply their respective weight
+        weights = [sel * w for sel, w in zip(classSelectors, weightsList)]
 
-        #sums all the selections
-        #result is a tensor with the respective weight for each element in predictions
+        # sums all the selections
+        # result is a tensor with the respective weight for each element in predictions
         weightMultiplier = weights[0]
         for i in range(1, len(weights)):
             weightMultiplier = weightMultiplier + weights[i]
 
-
-        #make sure your originalLossFunc only collapses the class axis
-        #you need the other axes intact to multiply the weights tensor
-        loss = originalLossFunc(true,pred)
+        # make sure your originalLossFunc only collapses the class axis
+        # you need the other axes intact to multiply the weights tensor
+        loss = originalLossFunc(true, pred)
         loss = loss * weightMultiplier
 
         return loss
+
     return lossFunc
 
 
@@ -61,6 +62,7 @@ def get_sample_weights(y_true, y_pred, cost_m):
     sample_weights_n = K.sum(sample_weights_nkk, axis=[1, 2])
 
     return sample_weights_n
+
 
 def create_unet(input_size, init_power=4, kernel_size=3, dropout=0.3):
     # Build U-Net model
@@ -120,7 +122,6 @@ def create_unet(input_size, init_power=4, kernel_size=3, dropout=0.3):
     return model
 
 
-
 def create_unet_bidirectRNN(input_size, init_power=4, kernel_size=3, dropout=0.3):
     # Build U-Net model
     inputs = Input(input_size)
@@ -171,7 +172,7 @@ def create_unet_bidirectRNN(input_size, init_power=4, kernel_size=3, dropout=0.3
     c9 = Conv1D(2 ** init_power, kernel_size, activation='relu', padding='same')(u9)
     c9 = Dropout(dropout)(c9)
     c9 = Conv1D(2 ** init_power, kernel_size, activation='relu', padding='same')(c9)
-    outputs = Bidirectional(CuDNNLSTM(64,return_sequences=True))(c9)
+    outputs = Bidirectional(CuDNNLSTM(64, return_sequences=True))(c9)
     outputs = ReLU()(outputs)
     outputs = Conv1D(5, 1, activation='softmax')(outputs)
     model = Model(inputs=[inputs], outputs=[outputs])
@@ -179,8 +180,6 @@ def create_unet_bidirectRNN(input_size, init_power=4, kernel_size=3, dropout=0.3
     model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.04), metrics=['acc', 'categorical_crossentropy'])
 
     return model
-
-
 
 
 def create_fcn_like(input_size, init_power=4, kernel_size=3, dropout=0.3):
@@ -217,31 +216,32 @@ def create_fcn_like(input_size, init_power=4, kernel_size=3, dropout=0.3):
 
     return model
 
-def create_fcn__multiple_heads(input_size, init_power=4, kernel_size=(3,3,3), dropout=0.3):
+
+def create_fcn__multiple_heads(input_size, init_power=4, kernel_size=(3, 3, 3), dropout=0.3):
     # Build U-Net model
     inputs = Input(input_size)
     c1_a = Conv1D(2 ** init_power, kernel_size[0], activation='relu', padding='same')(inputs)
     c1_a = Dropout(dropout)(c1_a)
-    c1_a = Conv1D(2 ** init_power,  kernel_size[0], activation='relu', padding='same')(c1_a)
+    c1_a = Conv1D(2 ** init_power, kernel_size[0], activation='relu', padding='same')(c1_a)
     p1_a = MaxPooling1D(2)(c1_a)
-    c4_a = Conv1D(2 ** (init_power + 1),  kernel_size[0], activation='relu', padding='same')(p1_a)
+    c4_a = Conv1D(2 ** (init_power + 1), kernel_size[0], activation='relu', padding='same')(p1_a)
     c4_a = Dropout(dropout)(c4_a)
-    c4_a = Conv1D(2 ** (init_power + 1),  kernel_size[0], activation='relu', padding='same')(c4_a)
+    c4_a = Conv1D(2 ** (init_power + 1), kernel_size[0], activation='relu', padding='same')(c4_a)
     p4_a = MaxPooling1D(2)(c4_a)
-    c5_a = Conv1D(2 ** (init_power + 2),  kernel_size[0], activation='relu', padding='same')(p4_a)
+    c5_a = Conv1D(2 ** (init_power + 2), kernel_size[0], activation='relu', padding='same')(p4_a)
     c5_a = Dropout(dropout)(c5_a)
-    c5_a = Conv1D(2 ** (init_power + 2),  kernel_size[0], activation='relu', padding='same')(c5_a)
+    c5_a = Conv1D(2 ** (init_power + 2), kernel_size[0], activation='relu', padding='same')(c5_a)
     u6_a = UpSampling1D(2)(c5_a)
-    c6_a = Conv1D(2 ** (init_power + 1),  kernel_size[0], activation='relu', padding='same')(u6_a)
+    c6_a = Conv1D(2 ** (init_power + 1), kernel_size[0], activation='relu', padding='same')(u6_a)
     c6_a = Dropout(dropout)(c6_a)
-    c6_a = Conv1D(2 ** (init_power + 1),  kernel_size[0], activation='relu', padding='same')(c6_a)
+    c6_a = Conv1D(2 ** (init_power + 1), kernel_size[0], activation='relu', padding='same')(c6_a)
     u9_a = UpSampling1D(2)(c6_a)
-    c9_a = Conv1D(2 ** init_power,  kernel_size[0], activation='relu', padding='same')(u9_a)
+    c9_a = Conv1D(2 ** init_power, kernel_size[0], activation='relu', padding='same')(u9_a)
     c9_a = Dropout(dropout)(c9_a)
-    c9_a = Conv1D(2 ** init_power,  kernel_size[0], activation='relu', padding='same')(c9_a)
+    c9_a = Conv1D(2 ** init_power, kernel_size[0], activation='relu', padding='same')(c9_a)
     outputs_a = Conv1D(5, 1, activation='softmax')(c9_a)
 
-    c1_b = Conv1D(2 ** init_power,  kernel_size[1], activation='relu', padding='same')(inputs)
+    c1_b = Conv1D(2 ** init_power, kernel_size[1], activation='relu', padding='same')(inputs)
     c1_b = Dropout(dropout)(c1_b)
     c1_b = Conv1D(2 ** init_power, kernel_size[1], activation='relu', padding='same')(c1_b)
     p1_b = MaxPooling1D(2)(c1_b)
@@ -289,7 +289,6 @@ def create_fcn__multiple_heads(input_size, init_power=4, kernel_size=(3,3,3), dr
     print(model.summary())
 
     return model
-
 
 
 def create_unet_bidirectRNN_extra_step(input_size, init_power=4, kernel_size=3, dropout=0.3):
@@ -342,7 +341,7 @@ def create_unet_bidirectRNN_extra_step(input_size, init_power=4, kernel_size=3, 
     c9 = Conv1D(2 ** init_power, kernel_size, activation='relu', padding='same')(u9)
     c9 = Dropout(dropout)(c9)
     c9 = Conv1D(2 ** init_power, kernel_size, activation='relu', padding='same')(c9)
-    outputs = Bidirectional(CuDNNLSTM(64,return_sequences=True))(c9)
+    outputs = Bidirectional(CuDNNLSTM(64, return_sequences=True))(c9)
     outputs = ReLU()(outputs)
     outputs = Conv1D(5, 1, activation='softmax')(outputs)
     model = Model(inputs=[inputs], outputs=[outputs])
@@ -352,12 +351,12 @@ def create_unet_bidirectRNN_extra_step(input_size, init_power=4, kernel_size=3, 
     return model
 
 
-def encoder(x, filters=44, n_block=4, kernel_size=5, activation='relu',dropout=0.1):
+def encoder(x, filters=44, n_block=4, kernel_size=5, activation='relu', dropout=0.1):
     skip = []
     for i in range(n_block):
-        x = Conv1D(filters * 2**i, kernel_size, activation=activation, padding='same')(x)
+        x = Conv1D(filters * 2 ** i, kernel_size, activation=activation, padding='same')(x)
         x = Dropout(dropout)(x)
-        x = Conv1D(filters * 2**i, kernel_size, activation=activation, padding='same')(x)
+        x = Conv1D(filters * 2 ** i, kernel_size, activation=activation, padding='same')(x)
         skip.append(x)
         x = MaxPooling1D(2)(x)
     return x, skip
@@ -369,48 +368,132 @@ def bottleneck(x, filters_bottleneck, mode='cascade', depth=6,
     if mode == 'cascade':  # used in the competition
         for i in range(depth):
             x = Conv1D(filters_bottleneck, kernel_size,
-                       activation=activation, padding='same', dilation_rate=2**i)(x)
+                       activation=activation, padding='same', dilation_rate=2 ** i)(x)
             dilated_layers.append(x)
         return add(dilated_layers)
     elif mode == 'parallel':  # Like "Atrous Spatial Pyramid Pooling"
         for i in range(depth):
             dilated_layers.append(
                 Conv1D(filters_bottleneck, kernel_size,
-                       activation=activation, padding='same', dilation_rate=2**i)(x)
+                       activation=activation, padding='same', dilation_rate=2 ** i)(x)
             )
         return add(dilated_layers)
 
 
-def decoder(x, skip, filters, n_block=3, kernel_size=5, activation='relu',dropout=0.1):
+def decoder(x, skip, filters, n_block=3, kernel_size=5, activation='relu', dropout=0.1):
     for i in reversed(range(n_block)):
         x = UpSampling1D(2)(x)
-        x = Conv1D(filters * 2**i, kernel_size, activation=activation, padding='same')(x)
+        x = Conv1D(filters * 2 ** i, kernel_size, activation=activation, padding='same')(x)
         x = concatenate([skip[i], x])
-        x = Conv1D(filters * 2**i, kernel_size, activation=activation, padding='same')(x)
+        x = Conv1D(filters * 2 ** i, kernel_size, activation=activation, padding='same')(x)
         x = Dropout(dropout)(x)
-        x = Conv1D(filters * 2**i, kernel_size, activation=activation, padding='same')(x)
+        x = Conv1D(filters * 2 ** i, kernel_size, activation=activation, padding='same')(x)
     return x
 
 
 def get_dilated_unet(
-        input_shape=(1104,3),
+        input_shape=(1104, 3),
         mode='cascade',
         filters=32,
         n_block=3,
-        kernel_size =5,
+        kernel_size=5,
         dropout=0.1,
         depth=6
 
 ):
     inputs = Input(input_shape)
 
-    enc, skip = encoder(inputs, filters, n_block,kernel_size=kernel_size,dropout=dropout)
-    bottle = bottleneck(enc, filters_bottleneck=filters * 2 ** n_block, mode=mode,kernel_size=kernel_size,depth=depth)
-    dec = decoder(bottle, skip, filters, n_block,kernel_size=kernel_size,dropout=dropout)
+    enc, skip = encoder(inputs, filters, n_block, kernel_size=kernel_size, dropout=dropout)
+    bottle = bottleneck(enc, filters_bottleneck=filters * 2 ** n_block, mode=mode, kernel_size=kernel_size, depth=depth)
+    dec = decoder(bottle, skip, filters, n_block, kernel_size=kernel_size, dropout=dropout)
     classify = Conv1D(5, 1, activation='softmax')(dec)
 
     model = Model(inputs=inputs, outputs=classify)
     print(model.summary())
     model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.04), metrics=['acc', 'categorical_crossentropy'])
 
+    return model
+
+
+def WaveNetResidualConv1D(num_filters, kernel_size, dilation_rate):
+    """ Function that creates a residual block for the WaveNet with gated
+        activation units, skip connections and residual output, as described
+        in Sections 2.3 and 2.4 of the paper [1].
+        Args:
+            num_filters (int): Number of filters used for convolution.
+            kernel_size (int): The size of the convolution.
+            dilation_rate (int): The dilation rate for the dilated convolution.
+        Returns:
+            A layer wrapper compatible to the Keras functional API.
+        See:
+            [1] Oord, Aaron van den, et al. "Wavenet: A generative model for
+                raw audio." arXiv preprint arXiv:1609.03499 (2016).
+    """
+
+    def build_residual_block(l_input):
+        # Gated activation.
+        l_sigmoid_conv1d = Conv1D(
+            num_filters, kernel_size, dilation_rate=dilation_rate,
+            padding="same", activation="sigmoid")(l_input)
+        l_tanh_conv1d = Conv1D(
+            num_filters, kernel_size, dilation_rate=dilation_rate,
+            padding="same", activation="tanh")(l_input)
+        l_mul = Multiply()([l_sigmoid_conv1d, l_tanh_conv1d])
+        # Branches out to skip unit and residual output.
+        l_skip_connection = Conv1D(1, 1)(l_mul)
+        l_residual = Add()([l_input, l_skip_connection])
+        return l_residual, l_skip_connection
+
+    return build_residual_block
+
+
+def build_wavenet_model(input_size, num_filters, kernel_size,
+                        num_residual_blocks, optimizer='adam'):
+    """ Returns an implementation of WaveNet, as described in Section 2
+        of the paper [1].
+        Args:
+            input_size (int): The size of the waveform the network will
+                consider as input.
+            num_filters (int): Number of filters used for convolution.
+            kernel_size (int): The size of the convolution.
+            num_residual_blocks (int): How many residual blocks to generate
+                between input and output. Residual block i will have a dilation
+                rate of 2^(i+1), i starting from zero.
+        Returns:
+            A Keras model representing the WaveNet.
+        See:
+            [1] Oord, Aaron van den, et al. "Wavenet: A generative model for
+                raw audio." arXiv preprint arXiv:1609.03499 (2016).
+    """
+    l_input = Input(batch_shape=(None, input_size, 1))
+    l_stack_conv1d = Conv1D(num_filters, kernel_size, padding="same")(l_input)
+    l_skip_connections = []
+    for i in range(num_residual_blocks):
+        l_stack_conv1d, l_skip_connection = WaveNetResidualConv1D(
+            num_filters, kernel_size, 2 ** (i + 1))(l_stack_conv1d)
+        l_skip_connections.append(l_skip_connection)
+    l_sum = Add()(l_skip_connections)
+    relu = Activation("relu")(l_sum)
+    l2_output = Conv1D(5, 1, activation='softmax')(relu)
+    model = Model(inputs=[l_input], outputs=[l2_output])
+    print(model.summary())
+    return model
+
+
+def build_bidirect_LSTM(input_size, dropout=0.1):
+    from keras.layers import TimeDistributed
+
+    input = Input(input_size)
+    bd1 = Bidirectional(CuDNNGRU(256, return_sequences=True))(input)
+    a1 = Activation('relu')(bd1)
+    bd2 = Bidirectional(CuDNNGRU(128, return_sequences=True))(a1)
+    a2 = Activation('relu')(bd2)
+    bd3 = Bidirectional(CuDNNGRU(128, return_sequences=True))(a2)
+    a3 = Activation('relu')(bd3)
+    #bd4 = Bidirectional(CuDNNGRU(128, return_sequences=True))(a3)
+    #a4 = Activation('relu')(bd4)
+
+    output = TimeDistributed(Dense(5,activation='softmax'))(a3)
+    model = Model(inputs=[input], outputs=[output])
+    print(model.summary())
     return model

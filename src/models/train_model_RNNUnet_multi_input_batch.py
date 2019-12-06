@@ -20,7 +20,7 @@ from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import KFold
 
 from src.models.models import create_fcn__multiple_heads, create_unet, create_unet_bidirectRNN, \
-     weightedLoss
+    weightedLoss, get_dilated_unet
 from pathlib import Path
 import numpy as np
 
@@ -94,11 +94,13 @@ def add_channels(X, kernel_size=5):
 @click.option('--init_power', default=5, help='Num filters (power of 2) at the first Conv Layer')
 @click.option('--lr_base', default=3e-3, help='LR base')
 @click.option('--lr_top', default=4e-2, help='LR top')
+@click.option('--n_block', default=3, help='Number of blocks in encoder | decoder')
 def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle, mode,
          kernel_size,
          init_power,
          lr_base,
-         lr_top):
+         lr_top,
+         n_block):
     # For multi gpu support
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
@@ -163,7 +165,14 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
 
     print(X.shape)
 
-    model = create_unet_bidirectRNN((X.shape[1], 3), init_power=init_power, kernel_size=kernel_size, dropout=dropout)
+    model = get_dilated_unet(
+            input_shape=(X.shape[1], X.shape[1]),
+            mode='cascade',
+            filters=2**(init_power+1),
+            n_block=n_block,
+            kernel_size=kernel_size,
+            dropout=dropout,
+            depth=6)
     # model = load_model('/home/anton/Repos/gamma_log_classification/models/weights.18-0.17.hdf5')
     X_holdout_adjusted, y_holdout_adjusted = transform_holdout(X_holdout, y_holdout, mode=mode)
 

@@ -17,7 +17,7 @@ import tensorflow as tf
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import KFold
 
-from src.models.models import create_fcn__multiple_heads, create_unet, create_unet_bidirectRNN, get_dilated_unet
+from src.models.models import create_fcn__multiple_heads, create_unet, create_unet_bidirectRNN, build_bidirect_LSTM
 from pathlib import Path
 import numpy as np
 
@@ -79,12 +79,10 @@ def transform_holdout(X_holdout, y_holdout, mode):
 @click.option('--init_power', default=5, help='Num filters (power of 2) at the first Conv Layer')
 @click.option('--lr_base', default=3e-3, help='LR base')
 @click.option('--lr_top', default=4e-2, help='LR top')
-@click.option('--n_block', default=3, help='Number of blocks in encoder | decoder')
 def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batch_size, gpu, epochs_per_cycle,mode,kernel_size,
          init_power,
          lr_base,
-         lr_top,
-         n_block
+         lr_top
          ):
     # For multi gpu support
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -133,7 +131,7 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
     # clr = SGDRScheduler(min_lr=1e-2,max_lr=5e-1,steps_per_epoch=np.ceil(3200/32))
         # Skip other than k-th fold
 
-    model_output_folder = os.path.join(output_file_path, f'dil-Unet-fold_{k}_mode_{mode}')
+    model_output_folder = os.path.join(output_file_path, f'lstm-fold_{k}_mode_{mode}')
     os.makedirs(model_output_folder, exist_ok=True)
     model_output_file = os.path.join(model_output_folder, "weights.{epoch:02d}-{val_acc:.4f}.hdf5")
 
@@ -146,15 +144,8 @@ def main(input_file_path, output_file_path, fold, dropout, weights, epochs, batc
                    mode='triangular')
 
     print(X.shape)
-    model = get_dilated_unet(
-            input_shape=(X.shape[1], 1),
-            mode='cascade',
-            filters=2**(init_power+1),
-            n_block=n_block,
-            kernel_size=kernel_size,
-            dropout=dropout,
-            depth=6)
 
+    model = build_bidirect_LSTM(input_size=(X.shape[1],1),dropout=dropout)
     # model = load_model('/home/anton/Repos/gamma_log_classification/models/weights.18-0.17.hdf5')
     X_holdout_adjusted,y_holdout_adjusted = transform_holdout(X_holdout,y_holdout,mode = mode)
 
