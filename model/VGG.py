@@ -11,7 +11,7 @@ from keras.layers import *
 
 
 # define architecture for EEG recognizer
-def VGG(input_size ,hyperparams):
+def DL_model(input_size ,hyperparams):
 
     input_size = (input_size,1)
 
@@ -38,9 +38,9 @@ def VGG(input_size ,hyperparams):
     pool5 = UpSampling1D(size=2)(conv5)
 
 
-    final = Conv1D(1, hyperparams['kern_size_1'], activation='sigmoid', padding='same',
+    final = Conv1D(5, hyperparams['kern_size_1'], activation='sigmoid', padding='same',
                    kernel_initializer='he_normal')(pool5)
-    pool5 = UpSampling1D(size=2)(conv5)
+    final = UpSampling1D(size=2)(final)
 
 
 

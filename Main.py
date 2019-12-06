@@ -1,23 +1,24 @@
 #import modules
 from DataGenerator import *
 from Pipeline import *
-from model.config_VGG import *
-
-
-#create datasets
-GetData = DataGenerator()
+from config import *
 
 
 
-accuracy = Pipeline(VGG(input_size=INPUT_SIZE ,hyperparams=HYPERPARAM) )
+
+
+CV = Pipeline(DL_model(input_size=INPUT_SIZE ,hyperparams=HYPERPARAM) )
+
+CV.train()
 print('________________________________________')
-print('\n Model accuracy: ',accuracy,'\n')
+print('\n Model accuracy: ',1,'\n')
 print('________________________________________')
 
+""" 
 os.system('dvc add ./data')
 os.system('git add .')
 os.system(f"git commit -m 'model , accuracy{accuracy}' ")
-
+"""
 
 
 
