@@ -1,6 +1,6 @@
 #import
 from config import *
-
+from Decompose.SBD import *
 
 
 class DataGenerator:
@@ -17,16 +17,16 @@ class DataGenerator:
         self.input_size = input_size
         self.target = target
 
-        self.X_train, self.y_train, self.well_id_train, self.df_train,self.df_test = self.load_data(data_path,test_name,train_name)
+        self.X_train, self.y_train, self.X_test = self.load_data(data_path,test_name,train_name)
 
         print(data_path)
 
 
-        """ 
+
         # apply subband decomposition
         self.X_train = SBD(self.X_train)
         self.X_test = SBD(self.X_test)
-        """
+
 
 
     def load_data(self,data_path,test_name,train_name):
@@ -34,87 +34,98 @@ class DataGenerator:
 
         # load test and train
         df_test = pd.read_csv(data_path + test_name,index_col=0, header=0)
+        df_test['label'] = np.nan
+
         df_train = pd.read_csv(data_path + train_name,index_col=0, header=0)
 
+        df_train,y_train = self.preprocessing_initial(df_train)
+        df_test,y_test = self.preprocessing_initial(df_test)
 
-        return self.preprocessing_initial(df_train,df_test)
+        return df_train, y_train, df_test
 
 
     def get_train_val(self,train_ind,val_ind):
 
 
         #get trian samples
-        X_train = self.X_train[np.in1d(self.well_id_train, train_ind),:,:]
-        y_train = self.y_train[np.in1d(self.well_id_train, train_ind),:,:]
+        X_train = self.X_train[train_ind,:,:]
+        y_train = self.y_train[train_ind,:,:]
 
         # get validation samples
-        X_val = self.X_train[np.in1d(self.well_id_train, val_ind),:,:]
-        y_val = self.y_train[np.in1d(self.well_id_train, val_ind),:,:]
+        X_val = self.X_train[val_ind,:,:]
+        y_val = self.y_train[val_ind,:,:]
 
         return X_train, y_train, X_val, y_val
 
 
-    def preprocessing_initial(self,df_train,df_test):
-
+    def preprocessing_initial(self,df):
 
         scaler = MinMaxScaler()
-        GR = df_train['GR'].values
-        GR = np.reshape(GR,[GR.shape[0],1])
-        df_train['GR'] = scaler.fit_transform(GR)
 
-        train_wells = df_train['well_id'].unique().tolist()
+        train_wells = df['well_id'].unique().tolist()
 
-
-
-        one_well_size = df_train[df_train['well_id']==train_wells[0]].shape[0]-self.input_size+1
 
 
         #data
-        X_train = np.zeros((
-            len(train_wells) * one_well_size,
-            self.input_size,
+        X = np.zeros((
+            len(train_wells),
+            1104,
             1
         ))
 
 
 
+
         #labels
-        y_train = np.zeros((
-            len(train_wells) * one_well_size,
-            self.input_size,
+        y = np.zeros((
+            len(train_wells) ,
+            1104,
             5
         ))
 
 
-        #insex of wells
-        well_id_train = np.zeros((X_train.shape[0]))
 
-        # one-hot encoding of the target
-        self.encoder = OneHotEncoder(handle_unknown='ignore')
+        GR = df['GR'].values
+        label = df['label'].values
 
-        #get target column
-        target = df_train[self.target].values
-        target = self.encoder.fit_transform(np.reshape(target,[target.shape[0],1])).toarray()
-        df_train = df_train.drop(self.target,axis=1)
+        for i in range(len(train_wells)):
 
-        #get data columns
-        df_train = df_train.values
-        df_test = df_test.values
+            GR_temp = GR[i*1100:(i+1)*1100]
+            GR_temp = np.reshape(GR_temp,[GR_temp.shape[0],1])
+            #GR_temp = scaler.fit_transform(GR_temp)
 
+            X[i,:1100,0] = GR_temp[:,0]
+            X[i, 1100:, 0] = X[i, 1096:1100, 0]
 
-        for ind,i in enumerate(train_wells):
-
-            temp = df_train[df_train[:,0] == i]
-            temp_target = target[df_train[:,0] == i,:]
-
-            for j in range(one_well_size):
-
-                X_train[j + ind*one_well_size,:,0] = temp[j:j + self.input_size,1]
-                y_train[j + ind*one_well_size,:,:] = temp_target[j:j + self.input_size]
-                well_id_train[j + ind*one_well_size] = i
+            temp = label[i*1100:(i+1)*1100]
 
 
-        return X_train, y_train, well_id_train, df_train, df_test
+
+            for j in range(1100):
+                if temp[j] == 0:
+                    y[i,j,0] = 1
+                if temp[j] == 1:
+                    y[i,j,1] = 1
+                if temp[j] == 2:
+                    y[i,j,2] = 1
+                if temp[j] == 3:
+                    y[i,j,3] = 1
+                if temp[j] == 4:
+                    y[i,j,4] = 1
+
+                y[i, 1100:, :] = y[i, 1096:1100, :]
+
+        X = self.rescale_X_to_maxmin(X)
+
+        return X, y
+
+    def rescale_X_to_maxmin(self,X, note='note'):
+        for i in range(X.shape[0]):
+            top = np.quantile(X[i, :], 0.715)
+            bottom = 0.33 + 0.4 * top
+            new_row = (X[i, :] - bottom) / (top - bottom) - 0.5
+            X[i, :] = new_row
+        return X
 
 
 

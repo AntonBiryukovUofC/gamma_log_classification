@@ -38,7 +38,7 @@ def DL_model(input_size ,hyperparams):
     pool5 = UpSampling1D(size=2)(conv5)
 
 
-    final = Conv1D(5, hyperparams['kern_size_1'], activation='sigmoid', padding='same',
+    final = Conv1D(5, hyperparams['kern_size_1'], activation='softmax', padding='same',
                    kernel_initializer='he_normal')(pool5)
     final = UpSampling1D(size=2)(final)
 

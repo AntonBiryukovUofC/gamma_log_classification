@@ -66,7 +66,11 @@ class Pipeline():
                  patience = PATIENCE,
                  min_delta = MIN_DELTA,
                  model_name = MODEL_NAME,
-                 GetData=DataGenerator()
+                 GetData=DataGenerator(),
+                 pic_folder = PIC_FOLDER,
+
+                 stacking_folder = STACKING_FOLDER,
+                 submit_fopder = SUBMIT_FOLDER
 
                  ):
 
@@ -81,42 +85,98 @@ class Pipeline():
 
         self.GetData = GetData
 
-
+        self.pic_folder = pic_folder
+        self.stacking_folder = stacking_folder
+        self.submit_fopder = submit_fopder
 
         # early stopping
         self.earlystopper = EarlyStopping(monitor='val_loss', patience=patience, verbose=1, mode='min', min_delta=min_delta)
 
+        self.reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1,
+                                      patience=int(patience/3), min_lr=self.lr/1000, verbose = 1)
 
     def train(self):
 
-        checkpointer = ModelCheckpoint(self.model_name, monitor='val_loss',
-                                            mode='min', verbose=1, save_best_only=True)
+
+
 
         # kfold cross-validation
         kf = KFold(self.n_fold, shuffle=True, random_state=42)
 
-        for fold, (train_ind, val_ind) in enumerate(kf.split(self.GetData.well_id_train)):
+        predictions = np.zeros((self.GetData.X_test.shape[0],self.GetData.X_test.shape[1],5))
+        score = 0
+        for fold, (train_ind, val_ind) in enumerate(kf.split(self.GetData.X_train)):
 
             X_train, y_train, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
 
-            #train_gen = Batch_processing(index_list=train_ind,GetData=self.GetData)
-            #val_gen = Batch_processing(index_list=val_ind,GetData=self.GetData)
+            checkpointer = ModelCheckpoint(self.model_name +'_'+str(fold)+'_.h5', monitor='val_loss',
+                                           mode='min', verbose=1, save_best_only=True)
 
             self.model.compile(optimizer=Adam(self.lr), loss='categorical_crossentropy', metrics=['accuracy'])
 
             # train model
-            results = self.model.fit(X_train,y_train, batch_size=self.batch_size, epochs=self.epochs,
-                                callbacks=[self.earlystopper, checkpointer],
+            history = self.model.fit(X_train,y_train, batch_size=self.batch_size, epochs=self.epochs,
+                                callbacks=[self.earlystopper, checkpointer, self.reduce_lr],
                                 validation_data=(X_val,y_val))
 
-            """ 
-            # plot training curves
-            plt.figure(figsize=(10, 5))
-            plt.plot(train_loss)
-            plt.plot(val_loss)
-            plt.legend(['Train loss', 'Test loss'])
-            plt.title('Training curves')
-            """
+            pred_val = self.model.predict(X_val)
+
+            pred_val = predictions_postprocess(pred_val)
+            y_val = predictions_postprocess(y_val)
+
+            predictions += self.model.predict(self.GetData.X_test)/self.n_fold
+
+
+
+
+            score += target_metric(pred_val,y_val)/self.n_fold
+
+            fig = plt.figure()
+            plt.plot(history.history['accuracy'])
+            plt.plot(history.history['val_accuracy'])
+            plt.legend(['train_accuracy','val_accuracy'])
+            plt.savefig(self.pic_folder + 'accuracy_' + str(fold) + '.png')
+
+            fig = plt.figure()
+            plt.plot(history.history['loss'])
+            plt.plot(history.history['val_loss'])
+            plt.legend(['train_loss', 'val_loss'])
+            plt.savefig(self.pic_folder + 'loss_' + str(fold) + '.png')
+
+
+        submit = predictions_postprocess(predictions)
+        submit = np.reshape(submit,(submit.shape[0],submit.shape[1]))
+        pd.DataFrame(submit).to_csv(self.stacking_folder +"_" +str(score)+'_csv')
+
+        predictions = predictions[:,:1100,:]
+        np.save(self.stacking_folder+str(score)+'_.csv',predictions)
+
+        print(predictions)
+        """ 
+        # plot training curves
+        plt.figure(figsize=(10, 5))
+        plt.plot(train_loss)
+        plt.plot(val_loss)
+        plt.legend(['Train loss', 'Test loss'])
+        plt.title('Training curves')
+        """
 
         return 0
 
+def target_metric(y_pred,y_true):
+
+    y_pred = np.reshape(y_pred,(y_pred.shape[0]*y_pred.shape[1]))
+    y_true = np.reshape(y_true, (y_true.shape[0] * y_true.shape[1]))
+
+    return accuracy_score(y_true, y_pred)
+
+def predictions_postprocess(pred):
+
+    final_predicitons = np.zeros((pred.shape[0],pred.shape[1]))
+
+    for i in range(pred.shape[0]):
+        for j in range(pred.shape[1]):
+            m_val = np.max(pred[i,j, :])
+            final_predicitons[i,j] = np.where(pred[i,j, :] == m_val)[0][0]
+
+    return final_predicitons[:,:1100]

@@ -6,24 +6,23 @@ from model.VGG import *
 #model configs:
 
 #training params
-N_EPOCH = 100
+N_EPOCH = 1000
 LR = 0.1
-LR_CUCLES = 5
 
 # early stopping settings
-MIN_DELTA = 0.001 # thresold of improvement
-PATIENCE = 10 # wait for 10 epoches for emprovement
+MIN_DELTA = 0.0001 # thresold of improvement
+PATIENCE = 1 # wait for 10 epoches for emprovement
 BATCH_SIZE = 512
-N_FOLD = 2 #number of folds for cross-validation
+N_FOLD = 5 #number of folds for cross-validation
 VERBOSE = 500 # print score every n batches
 
 
 #input and output sizes of the model
-INPUT_SIZE = 1100
-OUT_SIZE = 1100
+INPUT_SIZE = 1104
+OUT_SIZE = 1104
 
 MODEL_PATH = './model/'
-MODEL_NAME = MODEL_PATH + 'VGG_model.h5'
+MODEL_NAME = MODEL_PATH + 'VGG_model'
 
 #dictionary of hyperparameters
 HYPERPARAM = dict()
@@ -40,3 +39,4 @@ HYPERPARAM['n_filt_3'] = 128
 HYPERPARAM['kern_size_1'] = 4
 HYPERPARAM['kern_size_2'] = 4
 HYPERPARAM['kern_size_3'] = 4
+
