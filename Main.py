@@ -2,12 +2,12 @@
 from DataGenerator import *
 from Pipeline import *
 from config import *
+import sys
+
+start_fold = str(sys.argv[1])
 
 
-
-
-
-CV = Pipeline(DL_model(input_size=INPUT_SIZE ,hyperparams=HYPERPARAM) )
+CV = Pipeline(DL_model,start_fold)
 
 CV.train()
 print('________________________________________')

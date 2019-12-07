@@ -30,4 +30,3 @@ HYPERPARAM['dropout'] = 0.25
 HYPERPARAM['init_power'] = 6
 #size of kernel of input channels
 HYPERPARAM['kernel_size'] = 4
-

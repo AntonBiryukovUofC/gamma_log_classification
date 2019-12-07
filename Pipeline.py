@@ -57,7 +57,8 @@ class Batch_processing(keras.utils.Sequence):
 class Pipeline():
 
     def __init__(self,
-                 model,
+                 model_func,
+                 start_fold,
 
                  n_fold = N_FOLD,
                  epochs = N_EPOCH,
@@ -75,7 +76,8 @@ class Pipeline():
                  ):
 
         # load the model
-        self.model = model
+        self.model_func = model_func
+        self.start_fold = start_fold
 
         self.batch_size = batch_size
         self.epochs = epochs
@@ -107,10 +109,15 @@ class Pipeline():
         score = 0
         for fold, (train_ind, val_ind) in enumerate(kf.split(self.GetData.X_train)):
 
+            if fold < self.start_fold:
+                continue
+
             X_train, y_train, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
 
             checkpointer = ModelCheckpoint(self.model_name +'_'+str(fold)+'_.h5', monitor='val_loss',
                                            mode='min', verbose=1, save_best_only=True)
+
+            self.model = self.model_func(input_size=INPUT_SIZE ,hyperparams=HYPERPARAM)
 
             self.model.compile(optimizer=Adam(self.lr), loss='categorical_crossentropy', metrics=['accuracy'])
 

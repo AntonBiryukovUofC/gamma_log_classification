@@ -7,7 +7,7 @@ from keras.layers import *
 
 
 
-def DL_model(input_size, hyperparams, ):
+def DL_model(input_size, hyperparams ):
 
     init_power = hyperparams['init_power']
     kernel_size = hyperparams['kernel_size']
