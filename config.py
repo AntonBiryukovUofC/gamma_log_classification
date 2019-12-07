@@ -18,6 +18,9 @@ from keras import backend as keras
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 np.random.seed(42)
 
+from tensorflow import set_random_seed
+set_random_seed(42)
+
 # condiguration of GPU
 from keras import backend as K
 
