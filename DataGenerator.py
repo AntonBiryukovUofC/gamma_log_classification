@@ -53,6 +53,8 @@ class DataGenerator:
         X_train = self.X_train[train_ind,:,:]
         y_train = self.y_train[train_ind,:,:]
 
+
+
         # get validation samples
         X_val = self.X_train[val_ind,:,:]
         y_val = self.y_train[val_ind,:,:]

@@ -143,7 +143,8 @@ class Pipeline():
             score += target_metric(pred_val_processed,y_val)/self.n_fold
 
             fig = plt.figure()
-            plt.plot(history.history['accuracy'])
+            accuracy = history.history['accuracy']
+            plt.plot(accuracy)
             plt.plot(history.history['val_accuracy'])
             plt.legend(['train_accuracy','val_accuracy'])
             plt.savefig(self.pic_folder + 'accuracy_' + str(fold) + '.png')
