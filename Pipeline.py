@@ -108,7 +108,7 @@ class Pipeline():
         kf = KFold(self.n_fold, shuffle=True, random_state=42)
 
         predictions = np.zeros((self.GetData.X_test.shape[0],self.GetData.X_test.shape[1],5))
-        pred_val = np.zeros((self.GetData.X_train.shape[0],1100,5))
+        pred_val = np.zeros((self.GetData.X_train.shape[0],1104,5))
 
         score = 0
         for fold, (train_ind, val_ind) in enumerate(kf.split(self.GetData.X_train)):
@@ -121,7 +121,7 @@ class Pipeline():
             checkpointer = ModelCheckpoint(self.model_name +'_'+str(fold)+'_.h5', monitor='val_loss',
                                            mode='min', verbose=1, save_best_only=True)
 
-            self.model = self.model_func(input_size=INPUT_SIZE ,hyperparams=HYPERPARAM)
+            self.model = self.model_func(input_size=(self.GetData.X_train.shape[1],self.GetData.X_train.shape[2]) ,hyperparams=HYPERPARAM)
 
             self.model.compile(optimizer=Adam(self.lr), loss='categorical_crossentropy', metrics=['accuracy'])
 
@@ -161,7 +161,7 @@ class Pipeline():
 
         predictions = predictions[:,:1100,:]
         np.save(self.stacking_folder+str(score)+'_.csv',predictions)
-        pred_val(self.stacking_folder+str(score)+'_.csv',pred_val)
+        np.save( pred_val(self.stacking_folder+str(score)+'_.csv',pred_val))
 
         return 0
 

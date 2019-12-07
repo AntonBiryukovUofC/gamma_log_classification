@@ -14,7 +14,7 @@ def DL_model(input_size, hyperparams ):
     dropout = hyperparams['dropout']
     alpha = hyperparams['alpha']
 
-    input_size = (input_size, 34)
+    #input_size = (input_size, 34)
 
     # Build U-Net model
     inputs = Input(input_size)

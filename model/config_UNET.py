@@ -4,7 +4,7 @@ from model.UNET import *
 #model configs:
 
 #training params
-N_EPOCH = 1000
+N_EPOCH = 1#1000
 LR = 0.003
 
 # early stopping settings
