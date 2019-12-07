@@ -71,6 +71,7 @@ class Pipeline():
                  pic_folder = PIC_FOLDER,
 
                  stacking_folder = STACKING_FOLDER,
+                 debug_folder = DEBUG_FOLDER,
                  submit_fopder = SUBMIT_FOLDER
 
                  ):
@@ -89,6 +90,7 @@ class Pipeline():
 
         self.pic_folder = pic_folder
         self.stacking_folder = stacking_folder
+        self.debug_folder = debug_folder
         self.submit_fopder = submit_fopder
 
         # early stopping
@@ -106,6 +108,8 @@ class Pipeline():
         kf = KFold(self.n_fold, shuffle=True, random_state=42)
 
         predictions = np.zeros((self.GetData.X_test.shape[0],self.GetData.X_test.shape[1],5))
+        pred_val = np.zeros((self.GetData.X_train.shape[0],1100,5))
+
         score = 0
         for fold, (train_ind, val_ind) in enumerate(kf.split(self.GetData.X_train)):
 
@@ -126,9 +130,9 @@ class Pipeline():
                                 callbacks=[self.earlystopper, checkpointer, self.reduce_lr],
                                 validation_data=(X_val,y_val))
 
-            pred_val = self.model.predict(X_val)
+            pred_val[val_ind,:,:] = self.model.predict(X_val)
 
-            pred_val = predictions_postprocess(pred_val)
+            pred_val_processed = predictions_postprocess(pred_val[val_ind,:,:])
             y_val = predictions_postprocess(y_val)
 
             predictions += self.model.predict(self.GetData.X_test)/self.n_fold
@@ -136,7 +140,7 @@ class Pipeline():
 
 
 
-            score += target_metric(pred_val,y_val)/self.n_fold
+            score += target_metric(pred_val_processed,y_val)/self.n_fold
 
             fig = plt.figure()
             plt.plot(history.history['accuracy'])
@@ -150,23 +154,14 @@ class Pipeline():
             plt.legend(['train_loss', 'val_loss'])
             plt.savefig(self.pic_folder + 'loss_' + str(fold) + '.png')
 
+        predictions = predictions[:, :1100:, :]
+        submit = prepare_test(predictions, self.GetData.df_test)
+        submit[['row_id', 'well_id', 'label']].to_csv(self.stacking_folder +"_" +str(score)+'_csv', index=False)
 
-        submit = predictions_postprocess(predictions)
-        submit = np.reshape(submit,(submit.shape[0],submit.shape[1]))
-        pd.DataFrame(submit).to_csv(self.stacking_folder +"_" +str(score)+'_csv')
 
         predictions = predictions[:,:1100,:]
         np.save(self.stacking_folder+str(score)+'_.csv',predictions)
-
-        print(predictions)
-        """ 
-        # plot training curves
-        plt.figure(figsize=(10, 5))
-        plt.plot(train_loss)
-        plt.plot(val_loss)
-        plt.legend(['Train loss', 'Test loss'])
-        plt.title('Training curves')
-        """
+        pred_val(self.stacking_folder+str(score)+'_.csv',pred_val)
 
         return 0
 
@@ -187,3 +182,17 @@ def predictions_postprocess(pred):
             final_predicitons[i,j] = np.where(pred[i,j, :] == m_val)[0][0]
 
     return final_predicitons[:,:1100]
+
+
+def prepare_test(pred_test, df_test):
+    wells = df_test['well_id'].sort_values().unique().tolist()
+    list_df_wells = [df_test.loc[df_test['well_id'].isin([w]), :].copy() for w in wells]
+
+    for df in list_df_wells:
+        df.index = np.arange(df.shape[0])
+
+    for i, df_well in enumerate(list_df_wells):
+        df_well['label'] = np.argmax(pred_test[i, :], axis=1)
+
+    result = pd.concat(list_df_wells, axis=0)
+    return result

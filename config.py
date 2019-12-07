@@ -52,4 +52,4 @@ from model.config_UNET import *
 PIC_FOLDER = './data/pictures/'
 STACKING_FOLDER = './data/stacking/'
 SUBMIT_FOLDER = './data/result/'
-
+DEBUG_FOLDER = 'data/debug'

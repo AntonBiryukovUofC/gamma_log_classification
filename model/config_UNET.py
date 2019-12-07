@@ -4,7 +4,7 @@ from model.UNET import *
 #model configs:
 
 #training params
-N_EPOCH = 1
+N_EPOCH = 1000
 LR = 0.003
 
 # early stopping settings
@@ -25,8 +25,8 @@ MODEL_NAME = MODEL_PATH + 'UNET_model'
 #dictionary of hyperparameters
 HYPERPARAM = dict()
 #global dropout rate
-HYPERPARAM['dropout'] = 0.35
+HYPERPARAM['dropout'] = 0.2
 #number of filers for the model
-HYPERPARAM['init_power'] = 6
+HYPERPARAM['init_power'] = 5
 #size of kernel of input channels
 HYPERPARAM['kernel_size'] = 4

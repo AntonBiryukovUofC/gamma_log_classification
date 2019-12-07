@@ -34,6 +34,8 @@ class DataGenerator:
 
         # load test and train
         df_test = pd.read_csv(data_path + test_name,index_col=0, header=0)
+        self.df_test = df_test
+
         df_test['label'] = np.nan
 
         df_train = pd.read_csv(data_path + train_name,index_col=0, header=0)
