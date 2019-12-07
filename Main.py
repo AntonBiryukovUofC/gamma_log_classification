@@ -4,7 +4,7 @@ from Pipeline import *
 from config import *
 import sys
 
-start_fold = str(sys.argv[1])
+start_fold = int(sys.argv[1])
 
 
 CV = Pipeline(DL_model,start_fold)

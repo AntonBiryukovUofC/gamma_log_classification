@@ -35,6 +35,7 @@ def DL_model(input_size, hyperparams ):
     c4 = Dropout(dropout)(c4)
     c4 = Conv1D(2 ** (init_power + 3), kernel_size, activation='relu', padding='same')(c4)
     #p4 = MaxPooling1D(2)(c4)
+
     """
     c5 = Conv1D(2 ** (init_power + 4), kernel_size, activation='relu', padding='same')(p4)
     c5 = Dropout(dropout)(c5)
@@ -46,6 +47,7 @@ def DL_model(input_size, hyperparams ):
     c6 = Dropout(dropout)(c6)
     c6 = Conv1D(2 ** (init_power + 3), kernel_size, activation='relu', padding='same')(c6)
     """
+
     u7 = UpSampling1D(2)(c4)
     #u7 = UpSampling1D(2)(c6)
     u7 = concatenate([u7, c3])
