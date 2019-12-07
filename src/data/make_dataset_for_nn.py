@@ -7,9 +7,44 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.signal import medfilt
+from scipy.signal import medfilt, resample
 from sklearn.model_selection import GroupKFold
 from tqdm import tqdm
+
+
+def squeeze_stretch(s, y, scale=1.1):
+    n_old = s.shape[0]
+    if scale >= 1:
+        n_new = scale * s.shape[0]
+        s_new = resample(s, int(n_new))
+        y_new = resample(y, int(n_new))
+        mid_point = int(n_new) // 2
+        result_x = s_new[(mid_point - 550):(mid_point + 550)]
+        result_y = np.round(np.abs(y_new[(mid_point - 550):(mid_point + 550)]))
+    else:
+        n_new = scale * s.shape[0]
+        s_new = resample(s, int(n_new))
+        y_new = resample(y, int(n_new))
+        pad_width = int(n_old - n_new)
+        if pad_width % 2 == 0:
+            lp = rp = pad_width // 2
+        else:
+            lp = pad_width // 2
+            rp = lp + 1
+        s_new = np.pad(s_new, (lp, rp), mode='constant')
+        y_new = np.pad(y_new, (lp, rp), mode='constant')
+        low = np.quantile(s[y < 1], 0.15)
+        high = np.quantile(s[y < 1], 0.85)
+
+        rand_num = np.random.uniform(low, high, lp + rp)
+        s_new[:lp] = rand_num[:lp]
+        s_new[-rp:] = rand_num[lp:]
+        y_new[:lp] = 0
+        y_new[-rp:] = 0
+        result_x = s_new
+        result_y = np.round(np.abs(y_new))
+        result_y[result_y > 4] = 4
+    return result_x, result_y
 
 
 def fliplabel(x):
