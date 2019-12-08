@@ -13,6 +13,7 @@ def DL_model(input_size, hyperparams):
 
     input = Input(input_size)
     bd1 = Bidirectional(CuDNNGRU(256, return_sequences=True))(input)
+
     a1 = Activation('relu')(bd1)
     bd2 = Bidirectional(CuDNNGRU(128, return_sequences=True))(a1)
     a2 = Activation('relu')(bd2)

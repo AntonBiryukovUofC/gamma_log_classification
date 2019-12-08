@@ -145,17 +145,21 @@ class DataGenerator:
 
         return df_train, y_train, df_test
 
+
     def get_train_val(self, train_ind, val_ind):
 
         # get trian samples
         X_train = self.X_train[train_ind, :, :]
         y_train = self.y_train[train_ind, :, :]
 
+
+
         # get validation samples
         X_val = self.X_train[val_ind, :, :]
         y_val = self.y_train[val_ind, :, :]
 
         return X_train, y_train, X_val, y_val
+
 
     def preprocessing_initial(self, df):
 

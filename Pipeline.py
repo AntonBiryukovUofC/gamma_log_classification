@@ -64,7 +64,8 @@ class Pipeline():
         score = 0
         for fold, (train_ind, val_ind) in enumerate(kf.split(self.GetData.X_train)):
 
-            if fold < self.start_fold:
+
+            if fold != self.start_fold:
                 continue
 
             X_train, y_train, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
