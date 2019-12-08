@@ -108,7 +108,7 @@ class Pipeline():
         kf = KFold(self.n_fold, shuffle=True, random_state=42)
 
         predictions = np.zeros((self.GetData.X_test.shape[0],self.GetData.X_test.shape[1],5))
-        pred_val = np.zeros((self.GetData.X_train.shape[0],1104,5))
+        pred_val = np.zeros((self.GetData.X_train.shape[0],self.GetData.X_train.shape[1],5))
 
         score = 0
         for fold, (train_ind, val_ind) in enumerate(kf.split(self.GetData.X_train)):
