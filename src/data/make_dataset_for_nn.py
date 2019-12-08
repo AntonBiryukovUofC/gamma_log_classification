@@ -10,21 +10,42 @@ import pandas as pd
 from scipy.signal import medfilt, resample
 from sklearn.model_selection import GroupKFold
 from tqdm import tqdm
+from sklearn.neighbors import KNeighborsClassifier
+from scipy.signal import resample
+from sklearn.neighbors import KNeighborsClassifier
 
 
 def squeeze_stretch(s, y, scale=1.1):
     n_old = s.shape[0]
+    knn = KNeighborsClassifier(n_neighbors=3, weights='uniform')
     if scale >= 1:
         n_new = scale * s.shape[0]
         s_new = resample(s, int(n_new))
         y_new = resample(y, int(n_new))
         mid_point = int(n_new) // 2
+        confident_samples = np.ceil(y_new) == np.round(y_new)
+        # Get KNN on confident samples
+        x_axis = np.arange(s_new.shape[0])
+        X = x_axis[confident_samples].reshape(-1, 1)
+        y = np.abs(np.ceil(y_new[confident_samples]))
+        print(y.shape)
+        knn.fit(X, y)
+        y_new = knn.predict(x_axis.reshape(-1, 1))
         result_x = s_new[(mid_point - 550):(mid_point + 550)]
-        result_y = np.round(np.abs(y_new[(mid_point - 550):(mid_point + 550)]))
+        result_y = y_new[(mid_point - 550):(mid_point + 550)]
+        result_y[result_y > 4] = 4
     else:
         n_new = scale * s.shape[0]
         s_new = resample(s, int(n_new))
         y_new = resample(y, int(n_new))
+        x_axis = np.arange(s_new.shape[0])
+
+        confident_samples = np.ceil(y_new) == np.round(y_new)
+        X_knn = x_axis[confident_samples].reshape(-1, 1)
+        y_knn = np.abs(np.ceil(y_new[confident_samples]))
+        knn.fit(X_knn, y_knn)
+        y_new = knn.predict(x_axis.reshape(-1, 1))
+
         pad_width = int(n_old - n_new)
         if pad_width % 2 == 0:
             lp = rp = pad_width // 2
