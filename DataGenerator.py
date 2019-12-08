@@ -57,7 +57,7 @@ def get_stretch_well(x, scale=2):
             X_new[i, :, j] = s_new
             y_new[i, :, :] = to_ohe(label.astype(int))
 
-    return X_new, y_n
+    return X_new, y_new
 
 
 def get_stretch_well_parallel(X_train, y_train, scale=2):
