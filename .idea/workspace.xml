@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="56b2b6bc-91a0-45b6-870c-be8a397a7a38" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/model/LSTM.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/model/config_LSTM.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataGenerator.py" beforeDir="false" afterPath="$PROJECT_DIR$/DataGenerator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EDA-predictions.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/EDA-predictions.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Main.py" beforeDir="false" afterPath="$PROJECT_DIR$/Main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Pipeline.py" beforeDir="false" afterPath="$PROJECT_DIR$/Pipeline.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data.dvc" beforeDir="false" afterPath="$PROJECT_DIR$/data.dvc" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/config_UNET.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/config_UNET.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectId" id="1U5M3NPc00z6hyQCdNTGm2pzpKL" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showExcludedFiles" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/model" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+  </component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/model" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/model" />
+    </key>
+  </component>
+  <component name="RunManager">
+    <configuration name="Main" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="gamma_log" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/Main.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.Main" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="ServiceViewManager">
+    <option name="viewStates">
+      <list>
+        <serviceView>
+          <treeState>
+            <expand />
+            <select />
+          </treeState>
+        </serviceView>
+      </list>
+    </option>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="56b2b6bc-91a0-45b6-870c-be8a397a7a38" name="Default Changelist" comment="" />
+      <created>1574641802359</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1574641802359</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="COLUMN_ORDER" />
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="671" y="357" width="631" height="390" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1575750319166">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state x="671" y="357" width="634" height="390" key="#com.intellij.fileTypes.FileTypeChooser/1920.0.1920.1080/3840.0.1920.1080/67.27.1853.1053@67.27.1853.1053" timestamp="1575613611850" />
+    <state x="671" y="357" width="631" height="390" key="#com.intellij.fileTypes.FileTypeChooser/67.27.1853.1053@67.27.1853.1053" timestamp="1575750319166" />
+    <state width="1821" height="466" key="DebuggerActiveHint" timestamp="1575778921101">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1821" height="466" key="DebuggerActiveHint/67.27.1853.1053@67.27.1853.1053" timestamp="1575778921101" />
+    <state x="2649" y="290" width="424" height="484" key="FileChooserDialogImpl" timestamp="1575658869445">
+      <screen x="1920" y="0" width="1920" height="1080" />
+    </state>
+    <state x="2649" y="290" key="FileChooserDialogImpl/1920.0.1920.1080/3840.0.1920.1080/0.27.1920.1053@1920.0.1920.1080" timestamp="1575658869445" />
+    <state x="771" y="310" width="424" height="484" key="FileChooserDialogImpl/1920.0.1920.1080/3840.0.1920.1080/67.27.1853.1053@67.27.1853.1053" timestamp="1575612646953" />
+    <state width="1830" height="264" key="GridCell.Tab.0.bottom" timestamp="1575782912229">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1830" height="544" key="GridCell.Tab.0.bottom/1920.0.1920.1080/3840.0.1920.1080/0.27.1920.1053@1920.0.1920.1080" timestamp="1575658870234" />
+    <state width="1830" height="544" key="GridCell.Tab.0.bottom/1920.0.1920.1080/3840.0.1920.1080/67.27.1853.1053@67.27.1853.1053" timestamp="1575653369292" />
+    <state width="1830" height="264" key="GridCell.Tab.0.bottom/67.27.1853.1053@67.27.1853.1053" timestamp="1575782912229" />
+    <state width="1830" height="264" key="GridCell.Tab.0.center" timestamp="1575782912228">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1830" height="544" key="GridCell.Tab.0.center/1920.0.1920.1080/3840.0.1920.1080/0.27.1920.1053@1920.0.1920.1080" timestamp="1575658870233" />
+    <state width="1830" height="544" key="GridCell.Tab.0.center/1920.0.1920.1080/3840.0.1920.1080/67.27.1853.1053@67.27.1853.1053" timestamp="1575653369292" />
+    <state width="1830" height="264" key="GridCell.Tab.0.center/67.27.1853.1053@67.27.1853.1053" timestamp="1575782912228" />
+    <state width="1830" height="264" key="GridCell.Tab.0.left" timestamp="1575782912228">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1830" height="544" key="GridCell.Tab.0.left/1920.0.1920.1080/3840.0.1920.1080/0.27.1920.1053@1920.0.1920.1080" timestamp="1575658870233" />
+    <state width="1830" height="544" key="GridCell.Tab.0.left/1920.0.1920.1080/3840.0.1920.1080/67.27.1853.1053@67.27.1853.1053" timestamp="1575653369292" />
+    <state width="1830" height="264" key="GridCell.Tab.0.left/67.27.1853.1053@67.27.1853.1053" timestamp="1575782912228" />
+    <state width="1830" height="264" key="GridCell.Tab.0.right" timestamp="1575782912228">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1830" height="544" key="GridCell.Tab.0.right/1920.0.1920.1080/3840.0.1920.1080/0.27.1920.1053@1920.0.1920.1080" timestamp="1575658870233" />
+    <state width="1830" height="544" key="GridCell.Tab.0.right/1920.0.1920.1080/3840.0.1920.1080/67.27.1853.1053@67.27.1853.1053" timestamp="1575653369292" />
+    <state width="1830" height="264" key="GridCell.Tab.0.right/67.27.1853.1053@67.27.1853.1053" timestamp="1575782912228" />
+    <state width="1830" height="264" key="GridCell.Tab.1.bottom" timestamp="1575782912229">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1830" height="507" key="GridCell.Tab.1.bottom/1920.0.1920.1080/3840.0.1920.1080/0.27.1920.1053@1920.0.1920.1080" timestamp="1575658870229" />
+    <state width="1830" height="507" key="GridCell.Tab.1.bottom/1920.0.1920.1080/3840.0.1920.1080/67.27.1853.1053@67.27.1853.1053" timestamp="1575617616837" />
+    <state width="1830" height="264" key="GridCell.Tab.1.bottom/67.27.1853.1053@67.27.1853.1053" timestamp="1575782912229" />
+    <state width="1830" height="264" key="GridCell.Tab.1.center" timestamp="1575782912229">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1830" height="507" key="GridCell.Tab.1.center/1920.0.1920.1080/3840.0.1920.1080/0.27.1920.1053@1920.0.1920.1080" timestamp="1575658870229" />
+    <state width="1830" height="507" key="GridCell.Tab.1.center/1920.0.1920.1080/3840.0.1920.1080/67.27.1853.1053@67.27.1853.1053" timestamp="1575617616837" />
+    <state width="1830" height="264" key="GridCell.Tab.1.center/67.27.1853.1053@67.27.1853.1053" timestamp="1575782912229" />
+    <state width="1830" height="264" key="GridCell.Tab.1.left" timestamp="1575782912229">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1830" height="507" key="GridCell.Tab.1.left/1920.0.1920.1080/3840.0.1920.1080/0.27.1920.1053@1920.0.1920.1080" timestamp="1575658870229" />
+    <state width="1830" height="507" key="GridCell.Tab.1.left/1920.0.1920.1080/3840.0.1920.1080/67.27.1853.1053@67.27.1853.1053" timestamp="1575617616837" />
+    <state width="1830" height="264" key="GridCell.Tab.1.left/67.27.1853.1053@67.27.1853.1053" timestamp="1575782912229" />
+    <state width="1830" height="264" key="GridCell.Tab.1.right" timestamp="1575782912229">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1830" height="507" key="GridCell.Tab.1.right/1920.0.1920.1080/3840.0.1920.1080/0.27.1920.1053@1920.0.1920.1080" timestamp="1575658870229" />
+    <state width="1830" height="507" key="GridCell.Tab.1.right/1920.0.1920.1080/3840.0.1920.1080/67.27.1853.1053@67.27.1853.1053" timestamp="1575617616837" />
+    <state width="1830" height="264" key="GridCell.Tab.1.right/67.27.1853.1053@67.27.1853.1053" timestamp="1575782912229" />
+    <state x="482" y="187" key="SettingsEditor" timestamp="1575761412659">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state x="482" y="187" key="SettingsEditor/1920.0.1920.1080/3840.0.1920.1080/67.27.1853.1053@67.27.1853.1053" timestamp="1575612657856" />
+    <state x="482" y="187" key="SettingsEditor/67.27.1853.1053@67.27.1853.1053" timestamp="1575761412659" />
+    <state x="649" y="380" key="com.intellij.ide.util.TipDialog" timestamp="1575758049017">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state x="649" y="380" key="com.intellij.ide.util.TipDialog/67.27.1853.1053@67.27.1853.1053" timestamp="1575758049017" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/DataGenerator.py</url>
+          <line>129</line>
+          <option name="timeStamp" value="7" />
+        </line-breakpoint>
+      </breakpoints>
+      <default-breakpoints>
+        <breakpoint type="python-exception">
+          <properties notifyOnTerminate="true" exception="BaseException">
+            <option name="notifyOnTerminate" value="true" />
+          </properties>
+        </breakpoint>
+      </default-breakpoints>
+    </breakpoint-manager>
+  </component>
+</project>
