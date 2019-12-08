@@ -2,9 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="56b2b6bc-91a0-45b6-870c-be8a397a7a38" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/DataGenerator.py" beforeDir="false" afterPath="$PROJECT_DIR$/DataGenerator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EDA-predictions.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/EDA-predictions.ipynb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Pipeline.py" beforeDir="false" afterPath="$PROJECT_DIR$/Pipeline.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/LSTM.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/LSTM.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

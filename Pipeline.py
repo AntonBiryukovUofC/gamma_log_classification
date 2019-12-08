@@ -90,7 +90,7 @@ class Pipeline():
             predictions += self.model.predict(self.GetData.X_test)/self.n_fold
 
 
-            np.save(self.debug_folder + str(fold) + '_.csv', pred_val)
+            np.save(self.debug_folder + str(fold) + '_', pred_val)
 
 
             score += target_metric(pred_val_processed,y_val)/self.n_fold
