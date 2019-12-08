@@ -22,13 +22,21 @@ class DataGenerator:
         print(data_path)
 
 
+        # apply subband decomposition
+        SBD_arr = SBD(self.X_train)
+        self.X_train = np.concatenate((self.X_train, SBD_arr), axis=2)
+        diff_sig = np.diff(self.X_train, axis=1)
+        diff_sig1 = np.zeros((diff_sig.shape[0], diff_sig.shape[1] + 1, diff_sig.shape[2]))
+        diff_sig1[:, :-1, :] = diff_sig
+        self.X_train = np.concatenate((self.X_train, diff_sig1), axis=2)
 
         # apply subband decomposition
-
-        SBD_arr = SBD(self.X_train)
-        self.X_train = np.concatenate((self.X_train,SBD_arr),axis=2)
         SBD_arr = SBD(self.X_test)
         self.X_test = np.concatenate((self.X_test, SBD_arr), axis=2)
+        diff_sig = np.diff(self.X_test, axis=1)
+        diff_sig1 = np.zeros((diff_sig.shape[0], diff_sig.shape[1] + 1, diff_sig.shape[2]))
+        diff_sig1[:, :-1, :] = diff_sig
+        self.X_test = np.concatenate((self.X_test, diff_sig1), axis=2)
 
         del SBD_arr
         gc.collect()
