@@ -24,8 +24,14 @@ class DataGenerator:
 
 
         # apply subband decomposition
-        self.X_train = SBD(self.X_train)
-        self.X_test = SBD(self.X_test)
+
+        SBD_arr = SBD(self.X_train)
+        self.X_train = np.concatenate((self.X_train,SBD_arr),axis=2)
+        SBD_arr = SBD(self.X_test)
+        self.X_test = np.concatenate((self.X_test, SBD_arr), axis=2)
+
+        del SBD_arr
+        gc.collect()
 
 
 
@@ -33,15 +39,15 @@ class DataGenerator:
 
 
         # load test and train
-        df_test = pd.read_csv(data_path + test_name,index_col=0, header=0)
+        df_test = pd.read_csv(data_path + test_name,index_col=None, header=0)
         self.df_test = df_test
 
         df_test['label'] = np.nan
 
-        df_train = pd.read_csv(data_path + train_name,index_col=0, header=0)
+        df_train = pd.read_csv(data_path + train_name,index_col=None, header=0)
 
-        df_train,y_train = self.preprocessing_initial(df_train)
-        df_test,y_test = self.preprocessing_initial(df_test)
+        df_train,y_train = self.preprocessing_initial(df_train.drop('row_id',axis=1))
+        df_test,y_test = self.preprocessing_initial(df_test.drop('row_id',axis=1))
 
         return df_train, y_train, df_test
 
