@@ -22,7 +22,7 @@ os.system(f"git commit -m 'model , accuracy{accuracy}' ")
 
 
 
-
+"""
 for i in features:
 
     X_train = GetData.X_train[:,i,:].copy()
