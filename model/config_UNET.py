@@ -25,7 +25,7 @@ MODEL_NAME = MODEL_PATH + 'UNET_model'
 #dictionary of hyperparameters
 HYPERPARAM = dict()
 #global dropout rate
-HYPERPARAM['dropout'] = 0.2
+HYPERPARAM['dropout'] = 0.25
 #number of filers for the model
 HYPERPARAM['init_power'] = 5
 #size of kernel of input channels
