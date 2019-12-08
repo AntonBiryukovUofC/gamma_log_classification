@@ -94,10 +94,10 @@ class Pipeline():
         self.submit_fopder = submit_fopder
 
         # early stopping
-        self.earlystopper = EarlyStopping(monitor='val_loss', patience=patience, verbose=1, mode='min', min_delta=min_delta)
+        self.earlystopper = EarlyStopping(monitor='val_accuracy', patience=patience, verbose=1, mode='max', min_delta=min_delta)
 
-        self.reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1,
-                                      patience=int(patience/3), min_lr=self.lr/1000, verbose = 1)
+        self.reduce_lr = ReduceLROnPlateau(monitor='val_accuracy', factor=0.1,
+                                      patience=int(patience/3), min_lr=self.lr/1000, verbose = 1,mode='max',)
 
     def train(self):
 
@@ -118,8 +118,8 @@ class Pipeline():
 
             X_train, y_train, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
 
-            checkpointer = ModelCheckpoint(self.model_name +'_'+str(fold)+'_.h5', monitor='val_loss',
-                                           mode='min', verbose=1, save_best_only=True)
+            checkpointer = ModelCheckpoint(self.model_name +'_'+str(fold)+'_.h5', monitor='val_accuracy',
+                                           mode='max', verbose=1, save_best_only=True)
 
             self.model = self.model_func(input_size=(self.GetData.X_train.shape[1],self.GetData.X_train.shape[2]) ,hyperparams=HYPERPARAM)
 
@@ -138,7 +138,7 @@ class Pipeline():
             predictions += self.model.predict(self.GetData.X_test)/self.n_fold
 
 
-
+            break
 
             score += target_metric(pred_val_processed,y_val)/self.n_fold
 
@@ -162,7 +162,7 @@ class Pipeline():
 
         predictions = predictions[:,:1100,:]
         np.save(self.stacking_folder+str(score)+'_.csv',predictions)
-        np.save( pred_val(self.stacking_folder+str(score)+'_.csv',pred_val))
+        np.save( self.stacking_folder+str(score)+'_.csv',pred_val)
 
         return 0
 

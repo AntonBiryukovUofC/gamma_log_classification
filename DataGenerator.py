@@ -1,88 +1,82 @@
 # import
-from numpy import random
+import concurrent
+import random
 from scipy.signal import resample
 from sklearn.neighbors import KNeighborsClassifier
-from tqdm import trange
+from tqdm import trange, tqdm
 
 from config import *
 from Decompose.SBD import *
 
 
-def to_ohe(x):
-    n_values = np.max(x) + 1
+def to_ohe(x, n_values=5):
     y = np.eye(n_values)[x]
     return y
 
 
-def squeeze_stretch(s, y, scale=1.1):
-    n_old = s.shape[0]
+def stretch_well(s, y, scale=1.1):
     knn = KNeighborsClassifier(n_neighbors=3, weights='uniform')
+
     if scale >= 1:
         n_new = scale * s.shape[0]
         s_new = resample(s, int(n_new))
         y_new = resample(y, int(n_new))
-        mid_point = int(n_new) // 2
         confident_samples = np.ceil(y_new) == np.round(y_new)
         # Get KNN on confident samples
         x_axis = np.arange(s_new.shape[0])
         X = x_axis[confident_samples].reshape(-1, 1)
         y = np.abs(np.ceil(y_new[confident_samples]))
-        print(y.shape)
         knn.fit(X, y)
         y_new = knn.predict(x_axis.reshape(-1, 1))
-        result_x = s_new[(mid_point - 550):(mid_point + 550)]
-        result_y = y_new[(mid_point - 550):(mid_point + 550)]
-        result_y[result_y > 4] = 4
-    else:
-        n_new = scale * s.shape[0]
-        s_new = resample(s, int(n_new))
-        y_new = resample(y, int(n_new))
-        x_axis = np.arange(s_new.shape[0])
-        confident_samples = np.ceil(y_new) == np.round(y_new)
-        print(confident_samples.sum())
-        X_knn = x_axis[confident_samples].reshape(-1, 1)
-        y_knn = np.abs(np.ceil(y_new[confident_samples]))
-        print(y.shape)
-        knn.fit(X_knn, y_knn)
-        y_new = knn.predict(x_axis.reshape(-1, 1))
-        pad_width = int(n_old - n_new)
-        if pad_width % 2 == 0:
-            lp = rp = pad_width // 2
-        else:
-            lp = pad_width // 2
-            rp = lp + 1
-        s_new = np.pad(s_new, (lp, rp), mode='constant')
-        y_new = np.pad(y_new, (lp, rp), mode='constant')
-        low = np.quantile(s[y < 1], 0.15)
-        high = np.quantile(s[y < 1], 0.85)
-        rand_num = np.random.uniform(low, high, lp + rp)
-        s_new[:lp] = rand_num[:lp]
-        s_new[-rp:] = rand_num[lp:]
-        y_new[:lp] = 0
-        y_new[-rp:] = 0
         result_x = s_new
-        result_y = np.round(np.abs(y_new))
+        result_y = y_new
         result_y[result_y > 4] = 4
+        result_y[result_y < 0] = 0
+    else:
+        raise ValueError
     return result_x, result_y
 
 
-def get_stretch_scaled(X_train, y_train, seed=123, low=0.75, high=1.1):
+def get_stretch_well(x, scale=2):
+    X_train, y_train = x[0],x[1]
+
+    if len(X_train.shape) == 2:
+        X_train = np.expand_dims(X_train, axis=0)
+        y_train = np.expand_dims(y_train,axis=0)
     n_wells = X_train.shape[0]
-    y_new = np.zeros_like(y_train)
-    X_new = np.zeros_like(X_train)
-    for i in trange(n_wells):
-        rng = random.Random(seed + i)
-        scale = rng.uniform(low, high)
-        for j in X_train.shape[2]:
+    new_length = scale * X_train.shape[1]
+    y_new = np.zeros((y_train.shape[0], new_length, y_train.shape[2]))
+    X_new = np.zeros((X_train.shape[0], new_length, X_train.shape[2]))
+
+    for i in range(n_wells):
+        for j in range(X_train.shape[2]):
             s = X_train[i, :, j]
             labels_well = np.argmax(y_train[i, :, :], axis=1)
-            s_new, label = squeeze_stretch(s, labels_well, scale=scale)
-            X_new[i, :, j] = s_new
-            y_new[i, :, :] = to_ohe(label)
+            s_new, label = stretch_well(s, labels_well, scale=scale)
 
-    X_all = np.concatenate(X_train,X_new,axis=0)
-    y_all = np.concatenate(y_train, y_new, axis=0)
-    return X_all,y_all
+            X_new[i, :, j] = s_new
+            y_new[i, :, :] = to_ohe(label.astype(int))
+
+    return X_new, y_n
+
+
+def get_stretch_well_parallel(X_train, y_train, scale=2):
+    n_wells = X_train.shape[0]
+    print(f'Dealing with {n_wells}')
+    new_length = scale * X_train.shape[1]
+    print(f'New length {new_length}')
+
+    y_new = np.zeros((y_train.shape[0], new_length, y_train.shape[2]))
+    X_new = np.zeros((X_train.shape[0], new_length, X_train.shape[2]))
+
+    list_wells = [(X_train[i, :, :],y_train[i,:,:]) for i in range(X_train.shape[0])]
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers=10) as executor:
+        results = list(tqdm(executor.map(get_stretch_well, list_wells), total=len(list_wells)))
+    X_new = np.concatenate([r[0] for r in results],axis=0)
+    y_new = np.concatenate([r[1] for r in results], axis=0)
+
+    return X_new, y_new
 
 
 class DataGenerator:
@@ -93,6 +87,7 @@ class DataGenerator:
                  train_name=TRAIN_NAME,
                  input_size=INPUT_SIZE,
                  target=TARGET,
+                 scale=SCALE,
                  ):
 
         self.input_size = input_size
@@ -100,25 +95,36 @@ class DataGenerator:
 
         self.X_train, self.y_train, self.X_test = self.load_data(data_path, test_name, train_name)
 
-        print(data_path)
-        self.X_train, self.y_train = get_stretch_scaled(self.X_train,self.y_train)
+        self.X_train, self.y_train = get_stretch_well_parallel(X_train=self.X_train, y_train=self.y_train, scale=scale)
+        self.X_test, dummy = get_stretch_well_parallel(X_train=self.X_test,
+                                                       y_train=self.y_train[0:self.X_test.shape[0], :, :],
+                                                       scale=scale)
+        print(self.y_train.shape)
+        print(self.X_train.shape)
+        print(self.X_test.shape)
 
         # apply subband decomposition
-        self.X_train = SBD(self.X_train)
-        self.X_test = SBD(self.X_test)
+
+        SBD_arr = SBD(self.X_train)
+        self.X_train = np.concatenate((self.X_train, SBD_arr), axis=2)
+        SBD_arr = SBD(self.X_test)
+        self.X_test = np.concatenate((self.X_test, SBD_arr), axis=2)
+
+        del SBD_arr
+        gc.collect()
 
     def load_data(self, data_path, test_name, train_name):
 
         # load test and train
-        df_test = pd.read_csv(data_path + test_name, index_col=0, header=0)
+        df_test = pd.read_csv(data_path + test_name, index_col=None, header=0)
         self.df_test = df_test
 
         df_test['label'] = np.nan
 
-        df_train = pd.read_csv(data_path + train_name, index_col=0, header=0)
+        df_train = pd.read_csv(data_path + train_name, index_col=None, header=0)
 
-        df_train, y_train = self.preprocessing_initial(df_train)
-        df_test, y_test = self.preprocessing_initial(df_test)
+        df_train, y_train = self.preprocessing_initial(df_train.drop('row_id', axis=1))
+        df_test, y_test = self.preprocessing_initial(df_test.drop('row_id', axis=1))
 
         return df_train, y_train, df_test
 
@@ -127,8 +133,6 @@ class DataGenerator:
         # get trian samples
         X_train = self.X_train[train_ind, :, :]
         y_train = self.y_train[train_ind, :, :]
-        # Augmentation
-        X_train = get_stretch_scaled(X_train, y_train)
 
         # get validation samples
         X_val = self.X_train[val_ind, :, :]
@@ -195,3 +199,77 @@ class DataGenerator:
             new_row = (X[i, :] - bottom) / (top - bottom) - 0.5
             X[i, :] = new_row
         return X
+
+# def squeeze_stretch(s, y, scale=1.1):
+#     n_old = s.shape[0]
+#     knn = KNeighborsClassifier(n_neighbors=3, weights='uniform')
+#     if scale >= 1:
+#         n_new = scale * s.shape[0]
+#         s_new = resample(s, int(n_new))
+#         y_new = resample(y, int(n_new))
+#         mid_point = int(n_new) // 2
+#         confident_samples = np.ceil(y_new) == np.round(y_new)
+#         # Get KNN on confident samples
+#         x_axis = np.arange(s_new.shape[0])
+#         X = x_axis[confident_samples].reshape(-1, 1)
+#         y = np.abs(np.ceil(y_new[confident_samples]))
+#         knn.fit(X, y)
+#         y_new = knn.predict(x_axis.reshape(-1, 1))
+#         half_length = s.shape[0] // 2
+#         result_x = s_new[(mid_point - half_length):(mid_point + half_length)]
+#         result_y = y_new[(mid_point - half_length):(mid_point + half_length)]
+#         result_y[result_y > 4] = 4
+#         result_y[result_y < 0] = 0
+#
+#     else:
+#         n_new = scale * s.shape[0]
+#         s_new = resample(s, int(n_new))
+#         y_new = resample(y, int(n_new))
+#         x_axis = np.arange(s_new.shape[0])
+#         confident_samples = np.ceil(y_new) == np.round(y_new)
+#         X_knn = x_axis[confident_samples].reshape(-1, 1)
+#         y_knn = np.abs(np.ceil(y_new[confident_samples]))
+#         knn.fit(X_knn, y_knn)
+#         y_new = knn.predict(x_axis.reshape(-1, 1))
+#         pad_width = int(n_old - n_new + 1)
+#         if pad_width % 2 == 0:
+#             lp = rp = pad_width // 2
+#         else:
+#             lp = pad_width // 2
+#             rp = lp + 1
+#         s_new = np.pad(s_new, (lp, rp), mode='constant')
+#         y_new = np.pad(y_new, (lp, rp), mode='constant')
+#         low = np.quantile(s[y < 1], 0.15)
+#         high = np.quantile(s[y < 1], 0.85)
+#         rand_num = np.random.uniform(low, high, lp + rp)
+#         s_new[:lp] = rand_num[:lp]
+#         s_new[-rp:] = rand_num[lp:]
+#         y_new[:lp] = 0
+#         y_new[-rp:] = 0
+#         result_x = s_new
+#         result_y = np.round(np.abs(y_new))
+#         result_y[result_y > 4] = 4
+#         result_y[result_y < 0] = 0
+#
+#     return result_x, result_y
+
+# def get_stretch_scaled(X_train, y_train, seed=123, low=0.75, high=1.1):
+#     n_wells = X_train.shape[0]
+#     y_new = np.zeros_like(y_train)
+#     X_new = np.zeros_like(X_train)
+#     for i in trange(n_wells):
+#         rng = random.Random(seed + i)
+#         scale = rng.uniform(low, high)
+#         for j in range(X_train.shape[2]):
+#             s = X_train[i, :, j]
+#             labels_well = np.argmax(y_train[i, :, :], axis=1)
+#             s_new, label = stretch_well(s, labels_well, scale=scale)
+#
+#             X_new[i, :, j] = s_new
+#             y_new[i, :, :] = to_ohe(label.astype(int))
+#
+#     X_all = np.concatenate([X_train, X_new], axis=0)
+#     y_all = np.concatenate([y_train, y_new], axis=0)
+#     print(X_all.shape)
+#     print(y_all.shape)
+#     return X_all, y_all

@@ -25,7 +25,7 @@ set_random_seed(42)
 from keras import backend as K
 
 
-
+#K.set_floatx('float64')
 
 #visualization
 import matplotlib.pyplot as plt
