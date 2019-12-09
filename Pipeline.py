@@ -138,7 +138,7 @@ class Pipeline():
             predictions += self.model.predict(self.GetData.X_test)/self.n_fold
 
 
-            break
+
 
             score += target_metric(pred_val_processed,y_val)/self.n_fold
 
