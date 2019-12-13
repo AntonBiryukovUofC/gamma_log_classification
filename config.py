@@ -52,7 +52,7 @@ TARGET = 'label'
 DROPLIST = []
 
 # imodel settings
-from model.config_LSTM import *
+from model.config_UNET import *
 
 
 
