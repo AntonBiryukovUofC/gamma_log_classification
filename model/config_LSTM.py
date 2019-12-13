@@ -22,6 +22,7 @@ SCALE = 2
 
 MODEL_PATH = './data/weights/'
 MODEL_NAME = MODEL_PATH + 'LSTM_model'
+os.makedirs(MODEL_PATH,exist_ok=True)
 
 #dictionary of hyperparameters
 HYPERPARAM = dict()

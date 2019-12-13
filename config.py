@@ -45,8 +45,8 @@ import gc
 
 #names:
 DATA_PATH = './data/raw/'
-TRAIN_NAME = 'train.csv'
-TEST_NAME = 'test.csv'
+TRAIN_NAME = 'train_cax.csv'
+TEST_NAME = 'test_cax.csv'
 
 TARGET = 'label'
 DROPLIST = []

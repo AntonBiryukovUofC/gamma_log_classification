@@ -52,9 +52,6 @@ class Pipeline():
 
     def train(self):
 
-
-
-
         # kfold cross-validation
         kf = KFold(self.n_fold, shuffle=True, random_state=42)
 

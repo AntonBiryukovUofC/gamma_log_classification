@@ -2,11 +2,33 @@
 import concurrent
 import random
 from scipy.signal import resample
+from sklearn.linear_model import RANSACRegressor
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import PolynomialFeatures
 from tqdm import trange, tqdm
 
 from config import *
 from Decompose.SBD import *
+
+
+
+
+def rescale_one_row(s):
+    # Detrend with robust LM model
+    min_val = np.quantile(s, 0.05)
+    x = np.arange(s.shape[0]).reshape(-1,1)
+    idx = s > min_val
+    x_fit = x[idx].reshape(-1, 1)
+    s_fit = s[idx].reshape(-1, 1)
+    model = make_pipeline(PolynomialFeatures(degree=1), RANSACRegressor())
+    model.fit(x_fit, s_fit)
+    s_new = s.reshape(-1, 1) - model.predict(x.reshape(-1, 1))
+    # now scale to -0.5,0.5
+    top = np.quantile(s_new, 0.7)
+    bottom = np.quantile(s_new, 0.05)
+    new_row = (s_new - bottom) / (top - bottom) - 0.5
+    return new_row
 
 
 def to_ohe(x, n_values=5):
@@ -160,10 +182,13 @@ class DataGenerator:
 
         return X_train, y_train, X_val, y_val
 
+    def rescale_X_to_maxmin(self, X, note='note'):
+        print(f'Performing a rescale on {note}..')
+        for i in trange(X.shape[0]):
+            X[i, :] = rescale_one_row(X[i, :])
+        return X
 
     def preprocessing_initial(self, df):
-
-        scaler = StandardScaler()
 
         train_wells = df['well_id'].unique().tolist()
 
@@ -216,13 +241,7 @@ class DataGenerator:
 
         return X, y
 
-    def rescale_X_to_maxmin(self, X, note='note'):
-        for i in range(X.shape[0]):
-            top = np.quantile(X[i, :], 0.715)
-            bottom = 0.33 + 0.4 * top
-            new_row = (X[i, :] - bottom) / (top - bottom) - 0.5
-            X[i, :] = new_row
-        return X
+
 
 
 

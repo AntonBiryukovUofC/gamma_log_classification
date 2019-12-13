@@ -3,56 +3,19 @@ from config import *
 from DataGenerator import *
 import pickle
 
-""" 
-class Batch_processing(keras.utils.Sequence):
-    'Generates data for Keras'
 
-    def __init__(self, index_list,
-                 GetData,
-                 train_ind,
-                 val_ind,
-                 train = True,
-                 batch_size=BATCH_SIZE
-                 ):
+def prepare_test(pred_test, df_test):
+    wells = df_test['well_id'].sort_values().unique().tolist()
+    list_df_wells = [df_test.loc[df_test['well_id'].isin([w]), :].copy() for w in wells]
 
-        self.train = train
-        self.index_list = list(index_list)
-        self.batch_size = batch_size
-        self.GetData = GetData
+    for df in list_df_wells:
+        df.index = np.arange(df.shape[0])
 
-        self.train_ind = train_ind
-        self.val_ind = val_ind
+    for i, df_well in enumerate(list_df_wells):
+        df_well['label'] = np.argmax(pred_test[i, :], axis=1)
 
-
-    def __len__(self):
-        'Denotes the number of batches per epoch'
-        return int(np.floor(len(self.index_list) / self.batch_size))
-
-
-
-    def __getitem__(self, index):
-
-        'Generate one batch of data'
-        # Generate indexes of the batch
-        indexes = self.index_list[index * self.batch_size:(index + 1) * self.batch_size]
-
-        # Find list of IDs
-        list_IDs_temp = [self.index_list[k] for k in indexes]
-
-        # Generate data
-        X, y = self.__data_generation(list_IDs_temp)
-
-        return X, y
-
-    def __data_generation(self, list_IDs_temp):
-
-        X_train, y_train, X_val, y_val = self.GetData(train_ind,val_ind)
-
-        if train:
-            return X_train, y_train
-        else:
-            return X_val, y_val
-"""
+    result = pd.concat(list_df_wells, axis=0)
+    return result
 
 
 class Pipeline():
@@ -107,27 +70,44 @@ class Pipeline():
         predictions = np.zeros((self.GetData.X_test.shape[0], self.GetData.X_test.shape[1], 5))
         score = 0
         pred_val_dict = {}
+        predictions_test = np.zeros((self.GetData.X_test.shape[0], 1104, 5))
+
         for fold, (train_ind, val_ind) in enumerate(kf.split(self.GetData.X_train)):
+            print(f'Doing fold {fold}')
             weights_loc = weights_location_list[fold]
 
             X_train, y_train, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
-            self.model = self.model_func(input_size=INPUT_SIZE, hyperparams=HYPERPARAM)
+            # self.model = self.model_func(input_size=INPUT_SIZE, hyperparams=HYPERPARAM)
             self.model = load_model(weights_loc)
 
             pred_val = self.model.predict(X_val)
             pred_val_dict[fold] = pred_val.copy()
+            pred_val_dict[f'{fold}_y_val'] = y_val.copy()
 
-        return pred_val_dict
+            predictions_test += self.model.predict(self.GetData.X_test) / 5
+
+        predictions_test = predictions_test[:, :1100:, :]
+
+        return pred_val_dict, predictions_test
 
 
 start_fold = 0
-weights_location_list = ["/home/anton/Repos/gamma_log_classification_unet/data/weights/UNET_model_0_.h5",
-                         "/home/anton/Repos/gamma_log_classification_unet/data/weights/UNET_model_1_.h5",
-                         "/home/anton/Repos/gamma_log_classification_unet/data/weights/UNET_model_2_.h5",
-                         "/home/anton/Repos/gamma_log_classification_unet/data/weights/UNET_model_3_.h5",
-                         "/home/anton/Repos/gamma_log_classification_unet/data/weights/UNET_model_4_.h5"]
+test = pd.read_csv('./data/raw/test.csv')
+weights_location_list = ["/home/anton/tmp_unets/LSTM_shubindima/LSTM_model_0_98608.h5",
+                         "/home/anton/tmp_unets/LSTM_shubindima/LSTM_model_1_9857.h5",
+                         "/home/anton/tmp_unets/LSTM_shubindima/LSTM_model_2_98636.h5",
+                         "/home/anton/tmp_unets/LSTM_shubindima/LSTM_model_3_98592.h5",
+                         "/home/anton/tmp_unets/LSTM_shubindima/LSTM_model_4_98482.h5"]
 CV = Pipeline(DL_model, start_fold)
-pred = CV.validation(weights_location_list)
-file_pickle = '/home/anton/tmp_unets/OOF/UNET_OOF.pcl'
+pred, pred_test = CV.validation(weights_location_list)
+
+location_test_ = "/home/anton/tmp_unets/OOF/test_lstm_preds.pck"
+with open(location_test_, 'wb') as f:
+    pickle.dump(pred_test, f)
+
+file_pickle = '/home/anton/tmp_unets/OOF/LSTM_OOF.pcl'
 with open(file_pickle, 'wb') as f:
     pickle.dump(pred, f)
+
+submit = prepare_test(pred_test, test)
+submit[['row_id', 'well_id', 'label']].to_csv('data/result/LSTM_submit.csv', index=False)
