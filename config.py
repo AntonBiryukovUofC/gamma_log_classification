@@ -59,4 +59,7 @@ from model.config_UNET import *
 PIC_FOLDER = './data/pictures/'
 STACKING_FOLDER = './data/stacking/'
 SUBMIT_FOLDER = './data/result/'
-DEBUG_FOLDER = '/data/debug/'
+DEBUG_FOLDER = './data/debug/'
+
+for f in [PIC_FOLDER,STACKING_FOLDER,SUBMIT_FOLDER,DEBUG_FOLDER]:
+    os.makedirs(f,exist_ok=True)
