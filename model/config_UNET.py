@@ -18,7 +18,7 @@ VERBOSE = 500 # print score every n batches
 #input and output sizes of the model
 INPUT_SIZE = 1104
 OUT_SIZE = 1104
-SCALE = 2
+SCALE = 1
 
 MODEL_PATH = './data/weights/'
 MODEL_NAME = MODEL_PATH + 'UNET_model'
