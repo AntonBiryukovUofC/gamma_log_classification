@@ -11,11 +11,10 @@ from tqdm import trange, tqdm
 from config import *
 from Decompose.SBD import *
 
-
+from sklearn.preprocessing import MinMaxScaler
 
 
 def rescale_one_row(s):
-    # Detrend with robust LM model
     min_val = np.quantile(s, 0.1)
     x = np.arange(s.shape[0]).reshape(-1,1)
     idx = s > min_val
@@ -24,10 +23,10 @@ def rescale_one_row(s):
     model = make_pipeline(PolynomialFeatures(degree=1), RANSACRegressor(min_samples=250))
     model.fit(x_fit, s_fit)
     s_new = s.reshape(-1, 1) - model.predict(x.reshape(-1, 1))
-    # now scale to -0.5,0.5
-    top = np.quantile(s_new, 0.7)
-    bottom = np.quantile(s_new, 0.05)
-    new_row = (s_new - bottom) / (top - bottom) - 0.5
+    # top = np.quantile(s_new, 0.7)
+    # bottom = np.quantile(s_new, 0.05)
+    # new_row = (s_new - bottom) / (top - bottom) - 0.5
+    new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s_new)
     return new_row
 
 
