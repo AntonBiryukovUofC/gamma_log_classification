@@ -16,12 +16,12 @@ from Decompose.SBD import *
 
 def rescale_one_row(s):
     # Detrend with robust LM model
-    min_val = np.quantile(s, 0.05)
+    min_val = np.quantile(s, 0.1)
     x = np.arange(s.shape[0]).reshape(-1,1)
     idx = s > min_val
     x_fit = x[idx].reshape(-1, 1)
     s_fit = s[idx].reshape(-1, 1)
-    model = make_pipeline(PolynomialFeatures(degree=1), RANSACRegressor())
+    model = make_pipeline(PolynomialFeatures(degree=1), RANSACRegressor(min_samples=250))
     model.fit(x_fit, s_fit)
     s_new = s.reshape(-1, 1) - model.predict(x.reshape(-1, 1))
     # now scale to -0.5,0.5
