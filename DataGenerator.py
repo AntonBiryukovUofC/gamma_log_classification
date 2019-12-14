@@ -16,7 +16,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 def rescale_one_row(s):
     min_val = np.quantile(s, 0.1)
-    x = np.arange(s.shape[0]).reshape(-1,1)
+    x = np.arange(s.shape[0]).reshape(-1, 1)
     idx = s > min_val
     x_fit = x[idx].reshape(-1, 1)
     s_fit = s[idx].reshape(-1, 1)
@@ -59,11 +59,11 @@ def stretch_well(s, y, scale=1.1):
 
 
 def get_stretch_well(x, scale=2):
-    X_train, y_train = x[0],x[1]
+    X_train, y_train = x[0], x[1]
 
     if len(X_train.shape) == 2:
         X_train = np.expand_dims(X_train, axis=0)
-        y_train = np.expand_dims(y_train,axis=0)
+        y_train = np.expand_dims(y_train, axis=0)
     n_wells = X_train.shape[0]
     new_length = scale * X_train.shape[1]
     y_new = np.zeros((y_train.shape[0], new_length, y_train.shape[2]))
@@ -90,11 +90,11 @@ def get_stretch_well_parallel(X_train, y_train, scale=2):
     y_new = np.zeros((y_train.shape[0], new_length, y_train.shape[2]))
     X_new = np.zeros((X_train.shape[0], new_length, X_train.shape[2]))
 
-    list_wells = [(X_train[i, :, :],y_train[i,:,:]) for i in range(X_train.shape[0])]
+    list_wells = [(X_train[i, :, :], y_train[i, :, :]) for i in range(X_train.shape[0])]
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=10) as executor:
         results = list(tqdm(executor.map(get_stretch_well, list_wells), total=len(list_wells)))
-    X_new = np.concatenate([r[0] for r in results],axis=0)
+    X_new = np.concatenate([r[0] for r in results], axis=0)
     y_new = np.concatenate([r[1] for r in results], axis=0)
 
     return X_new, y_new
@@ -114,12 +114,11 @@ class DataGenerator:
         self.input_size = input_size
         self.target = target
 
+        self.X_train, self.y_train, self.X_test = self.load_data(data_path, test_name, train_name)
 
-        self.X_train, self.y_train, self.X_test = self.load_data(data_path,test_name,train_name)
+        # self.X_train,self.y_train = self.squeeze_stretch(self.X_train,self.y_train)
 
-        #self.X_train,self.y_train = self.squeeze_stretch(self.X_train,self.y_train)
-
-        #self.X_test, dummy = self.squeeze_stretch(self.X_test, self.y_train[self.X_test.shape[0],:,:])
+        # self.X_test, dummy = self.squeeze_stretch(self.X_test, self.y_train[self.X_test.shape[0],:,:])
 
         """ 
         #self.X_train, self.y_train = get_stretch_well_parallel(X_train=self.X_train, y_train=self.y_train, scale=scale)
@@ -128,16 +127,14 @@ class DataGenerator:
                                                        scale=scale)
         """
 
-
         # apply subband decomposition
         SBD_arr = SBD(self.X_train)
-        self.X_train = np.concatenate((self.X_train,SBD_arr),axis=2)
+        self.X_train = np.concatenate((self.X_train, SBD_arr), axis=2)
 
         diff_sig = np.diff(self.X_train, axis=1)
         diff_sig1 = np.zeros((diff_sig.shape[0], diff_sig.shape[1] + 1, diff_sig.shape[2]))
         diff_sig1[:, :-1, :] = diff_sig
         self.X_train = np.concatenate((self.X_train, diff_sig1), axis=2)
-
 
         # apply subband decomposition
         SBD_arr = SBD(self.X_test)
@@ -148,7 +145,7 @@ class DataGenerator:
         diff_sig1[:, :-1, :] = diff_sig
         self.X_test = np.concatenate((self.X_test, diff_sig1), axis=2)
 
-        del SBD_arr,diff_sig1
+        del SBD_arr, diff_sig1
         gc.collect()
 
     def load_data(self, data_path, test_name, train_name):
@@ -161,19 +158,16 @@ class DataGenerator:
 
         df_train = pd.read_csv(data_path + train_name, index_col=None, header=0)
 
-        df_train, y_train = self.preprocessing_initial(df_train.drop('row_id', axis=1))
-        df_test, y_test = self.preprocessing_initial(df_test.drop('row_id', axis=1))
+        df_train, y_train = self.preprocessing_initial(df_train.drop('row_id', axis=1), note='Train')
+        df_test, y_test = self.preprocessing_initial(df_test.drop('row_id', axis=1), note='Test')
 
         return df_train, y_train, df_test
-
 
     def get_train_val(self, train_ind, val_ind):
 
         # get trian samples
         X_train = self.X_train[train_ind, :, :]
         y_train = self.y_train[train_ind, :, :]
-
-
 
         # get validation samples
         X_val = self.X_train[val_ind, :, :]
@@ -183,11 +177,18 @@ class DataGenerator:
 
     def rescale_X_to_maxmin(self, X, note='note'):
         print(f'Performing a rescale on {note}..')
-        for i in trange(X.shape[0]):
-            X[i, :] = rescale_one_row(X[i, :])
-        return X
+        list_wells = [X[i, :] for i in range(X.shape[0])]
+        X_new = X.copy()
 
-    def preprocessing_initial(self, df):
+        with concurrent.futures.ProcessPoolExecutor(max_workers=10) as executor:
+            results = list(tqdm(executor.map(rescale_one_row, list_wells), total=len(list_wells)))
+
+        for i in range(X.shape[0]):
+            X_new[i, :, 0] = results[i].reshape(1, -1)
+
+        return X_new
+
+    def preprocessing_initial(self, df, note='MinMax'):
 
         train_wells = df['well_id'].unique().tolist()
 
@@ -213,7 +214,6 @@ class DataGenerator:
             GR_temp = GR[i * 1100:(i + 1) * 1100]
             GR_temp = np.reshape(GR_temp, [GR_temp.shape[0], 1])
 
-
             X[i, :1100, 0] = GR_temp[:, 0]
             X[i, 1100:, 0] = X[i, 1096:1100, 0]
 
@@ -233,14 +233,9 @@ class DataGenerator:
 
                 y[i, 1100:, :] = y[i, 1096:1100, :]
 
-        X = self.rescale_X_to_maxmin(X)
+        X = self.rescale_X_to_maxmin(X, note=note)
 
-        #for i in range(X.shape[0]):
+        # for i in range(X.shape[0]):
         #    X[0,:,:] = medfilt(X[0,:,:],3)
 
         return X, y
-
-
-
-
-
