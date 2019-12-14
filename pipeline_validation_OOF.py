@@ -92,22 +92,23 @@ class Pipeline():
 
 
 start_fold = 0
-test = pd.read_csv('./data/raw/test.csv')
-weights_location_list = ["/home/anton/tmp_unets/LSTM_shubindima/LSTM_model_0_98608.h5",
-                         "/home/anton/tmp_unets/LSTM_shubindima/LSTM_model_1_9857.h5",
-                         "/home/anton/tmp_unets/LSTM_shubindima/LSTM_model_2_98636.h5",
-                         "/home/anton/tmp_unets/LSTM_shubindima/LSTM_model_3_98592.h5",
-                         "/home/anton/tmp_unets/LSTM_shubindima/LSTM_model_4_98482.h5"]
+test = pd.read_csv('./data/raw/test_cax.csv')
+path = "./data/weights/"
+weights_location_list = [path+"LSTM_model_0_96815.h5",
+                         path+"LSTM_model_1_96930.h5",
+                         path+"LSTM_model_2_96746.h5",
+                         path+"LSTM_model_3_96909.h5",
+                         path+"LSTM_model_4_96770.h5"]
 CV = Pipeline(DL_model, start_fold)
 pred, pred_test = CV.validation(weights_location_list)
 
-location_test_ = "/home/anton/tmp_unets/OOF/test_lstm_preds.pck"
+location_test_ = "./data/test_lstm_preds.pck"
 with open(location_test_, 'wb') as f:
     pickle.dump(pred_test, f)
 
-file_pickle = '/home/anton/tmp_unets/OOF/LSTM_OOF.pcl'
+file_pickle = './data/LSTM_OOF.pcl'
 with open(file_pickle, 'wb') as f:
     pickle.dump(pred, f)
 
 submit = prepare_test(pred_test, test)
-submit[['row_id', 'well_id', 'label']].to_csv('data/result/LSTM_submit.csv', index=False)
+submit[['row_id', 'label']].to_csv('./data/result/LSTM_submit.csv', index=False)

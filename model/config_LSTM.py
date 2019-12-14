@@ -10,7 +10,7 @@ LR = 0.003
 # early stopping settings
 MIN_DELTA = 0.0001 # thresold of improvement
 PATIENCE = 30 # wait for 10 epoches for emprovement
-BATCH_SIZE = 48
+BATCH_SIZE = 64
 N_FOLD = 5 #number of folds for cross-validation
 VERBOSE = 500 # print score every n batches
 
