@@ -2,8 +2,6 @@
 from config import *
 from DataGenerator import *
 
-
-
 class Pipeline():
 
     def __init__(self,
@@ -11,6 +9,7 @@ class Pipeline():
                  GetData,
                  model_func,
                  start_fold,
+                 gpu,
 
                  n_fold = N_FOLD,
                  epochs = N_EPOCH,
@@ -30,6 +29,7 @@ class Pipeline():
         # load the model
         self.model_func = model_func
         self.start_fold = start_fold
+        self.gpu = gpu
 
         self.batch_size = batch_size
         self.epochs = epochs
@@ -67,7 +67,7 @@ class Pipeline():
 
             X_train, y_train, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
 
-            checkpointer = ModelCheckpoint(self.model_name +'_'+str(fold)+'_.h5', monitor='val_accuracy',
+            checkpointer = ModelCheckpoint(self.model_name +'_'+str(fold)+f'_{self.gpu}.h5', monitor='val_accuracy',
                                            mode='max', verbose=1, save_best_only=True)
 
             self.model = self.model_func(input_size=(self.GetData.X_train.shape[1],self.GetData.X_train.shape[2]) ,hyperparams=HYPERPARAM)
