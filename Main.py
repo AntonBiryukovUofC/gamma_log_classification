@@ -17,7 +17,7 @@ def main(start_fold,gpu):
     GetData = DataGenerator()
     CV = Pipeline(GetData, DL_model,start_fold)
     score = CV.train()
-    log.log(f'Model accuracy = {score}')
+    log.info(f'Model accuracy = {score}')
 
 if __name__ == "__main__":
     main()
