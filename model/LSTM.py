@@ -13,11 +13,11 @@ def DL_model(input_size, hyperparams):
 
     input = Input(input_size)
     bd1 = Bidirectional(CuDNNLSTM(256, return_sequences=True))(input)
-    a1 = Activation('elu')(bd1)
+    a1 = Activation('relu')(bd1)
     bd2 = Bidirectional(CuDNNLSTM(256, return_sequences=True))(a1)
-    a2 = Activation('elu')(bd2)
+    a2 = Activation('relu')(bd2)
     bd3 = Bidirectional(CuDNNLSTM(256, return_sequences=True))(a2)
-    a3 = Activation('elu')(bd3)
+    a3 = Activation('relu')(bd3)
     
     output = TimeDistributed(Dense(5, activation='softmax'))(a3)
     model = Model(inputs=[input], outputs=[output])

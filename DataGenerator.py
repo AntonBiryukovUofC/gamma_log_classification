@@ -1,37 +1,34 @@
 # import
 import concurrent
-import random
-from scipy.signal import resample
-from sklearn.linear_model import RANSACRegressor
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import PolynomialFeatures
-from tqdm import trange, tqdm
-
-from config import *
-from Decompose.SBD import *
 
 from sklearn.preprocessing import MinMaxScaler
+from tqdm import tqdm
 
+from Decompose.SBD import *
+
+
+# def rescale_one_row(s):
+#     min_val = np.quantile(s, 0.1)
+#     x = np.arange(s.shape[0]).reshape(-1, 1)
+#     idx = s > min_val
+#     x_fit = x[idx].reshape(-1, 1)
+#     s_fit = s[idx].reshape(-1, 1)
+#     model = make_pipeline(PolynomialFeatures(degree=1), RANSACRegressor(min_samples=250))
+#     model.fit(x_fit, s_fit)
+#     s_new = s.reshape(-1, 1) - model.predict(x.reshape(-1, 1))
+#     # top = np.quantile(s_new, 0.7)
+#     # bottom = np.quantile(s_new, 0.05)
+#     # new_row = (s_new - bottom) / (top - bottom) - 0.5
+#     new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s_new)
+#     return new_row
 
 def rescale_one_row(s):
-    min_val = np.quantile(s, 0.1)
-    x = np.arange(s.shape[0]).reshape(-1, 1)
-    idx = s > min_val
-    x_fit = x[idx].reshape(-1, 1)
-    s_fit = s[idx].reshape(-1, 1)
-    model = make_pipeline(PolynomialFeatures(degree=1), RANSACRegressor(min_samples=250))
-    model.fit(x_fit, s_fit)
-    s_new = s.reshape(-1, 1) / model.predict(x.reshape(-1, 1))
-    # top = np.quantile(s_new, 0.7)
-    # bottom = np.quantile(s_new, 0.05)
-    # new_row = (s_new - bottom) / (top - bottom) - 0.5
-    new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s_new)
 
 
-
+    new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s)
 
     return new_row
+
 
 
 def to_ohe(x, n_values=5):
@@ -131,13 +128,13 @@ class DataGenerator:
                  train_name=TRAIN_NAME,
                  input_size=INPUT_SIZE,
                  target=TARGET,
-                 scale=SCALE,
+                 dataset_mode='normal'
                  ):
 
         self.input_size = input_size
         self.target = target
-
-        self.X_train, self.y_train, self.X_test = self.load_data(data_path, test_name, train_name)
+        self.dataset_mode = dataset_mode
+        self.X_train, self.y_train, self.X_test, self.df_train_xstart, self.y_train_xstart = self.load_data(data_path, test_name, train_name)
 
         # self.X_train,self.y_train = self.squeeze_stretch(self.X_train,self.y_train)
 
@@ -168,6 +165,19 @@ class DataGenerator:
         diff_sig1[:, :-1, :] = diff_sig
         self.X_test = np.concatenate((self.X_test, diff_sig1), axis=2)
 
+
+        # apply subband decomposition
+        SBD_arr = SBD(self.df_train_xstart)
+        self.df_train_xstart = np.concatenate((self.df_train_xstart, SBD_arr), axis=2)
+
+        diff_sig = np.diff(self.df_train_xstart, axis=1)
+        diff_sig1 = np.zeros((diff_sig.shape[0], diff_sig.shape[1] + 1, diff_sig.shape[2]))
+        diff_sig1[:, :-1, :] = diff_sig
+        self.df_train_xstart = np.concatenate((self.df_train_xstart, diff_sig1), axis=2)
+
+
+
+
         del SBD_arr, diff_sig1
         gc.collect()
 
@@ -177,14 +187,21 @@ class DataGenerator:
         df_test = pd.read_csv(data_path + test_name, index_col=None, header=0)
         self.df_test = df_test
 
+        df_train_xstart = pd.read_csv(data_path + 'train.csv', index_col=None, header=0)
+        df_train_xstart['well_id'] += 4000
+
         df_test['label'] = np.nan
 
         df_train = pd.read_csv(data_path + train_name, index_col=None, header=0)
 
         df_train, y_train = self.preprocessing_initial(df_train.drop('row_id', axis=1), note='Train')
+        df_train_xstart, y_train_xstart = self.preprocessing_initial(df_train_xstart.drop('row_id', axis=1), note='Train_xstart')
+
         df_test, y_test = self.preprocessing_initial(df_test.drop('row_id', axis=1), note='Test')
 
-        return df_train, y_train, df_test
+
+
+        return df_train, y_train, df_test, df_train_xstart, y_train_xstart
 
     def get_train_val(self, train_ind, val_ind):
 
@@ -195,6 +212,9 @@ class DataGenerator:
         # get validation samples
         X_val = self.X_train[val_ind, :, :]
         y_val = self.y_train[val_ind, :, :]
+
+        X_train = np.concatenate((X_train, self.df_train_xstart), axis=0)
+        y_train = np.concatenate((y_train, self.y_train_xstart), axis=0)
 
         return X_train, y_train, X_val, y_val
 
@@ -257,6 +277,11 @@ class DataGenerator:
                 y[i, 1100:, :] = y[i, 1096:1100, :]
 
         X = self.rescale_X_to_maxmin(X, note=note)
+        if self.dataset_mode == 'lr':
+            X = np.fliplr(X)
+            y = np.fliplr(y)
+        if self.dataset_mode == 'ud':
+            X = X*(-1)
 
         #X = envelope_scaling(X)
 
