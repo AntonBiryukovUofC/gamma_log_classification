@@ -12,7 +12,7 @@ def DL_model(input_size, hyperparams):
     dropout = hyperparams['dropout']
 
     input = Input(input_size)
-    bd1 = Bidirectional(CuDNNLSTM(256, return_sequences=True))(input)
+    bd1 = Bidirectional(CuDNNLSTM(512, return_sequences=True))(input)
     a1 = Activation('elu')(bd1)
     bd2 = Bidirectional(CuDNNLSTM(256, return_sequences=True))(a1)
     a2 = Activation('elu')(bd2)

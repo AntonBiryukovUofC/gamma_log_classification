@@ -24,7 +24,7 @@ def main(start_fold,gpu):
 
     GetData = DataGenerator(dataset_mode='lr')
     CV = Pipeline(GetData, DL_model, start_fold, gpu,model_name=MODEL_PATH + 'LSTM_model_lr')
-    score = CV.train()
+    score = CV.train(optimizer=SGD(CV.lr))
     log.info(f'Model accuracy = {score}')
 
 if __name__ == "__main__":

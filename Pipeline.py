@@ -52,7 +52,9 @@ class Pipeline():
         self.reduce_lr = ReduceLROnPlateau(monitor='val_accuracy', factor=0.1,
                                            patience=int(patience / 3), min_lr=self.lr / 1000, verbose=1, mode='max', )
 
-    def train(self):
+    def train(self,optimizer=None):
+        if optimizer is None:
+            optimizer = Adam(self.lr)
 
         # kfold cross-validation
         kf = KFold(self.n_fold, shuffle=True, random_state=42)
@@ -75,7 +77,7 @@ class Pipeline():
             self.model = self.model_func(input_size=(self.GetData.X_train.shape[1], self.GetData.X_train.shape[2]),
                                          hyperparams=HYPERPARAM)
 
-            self.model.compile(optimizer=Adam(self.lr), loss='categorical_crossentropy', metrics=['accuracy'])
+            self.model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
             # train model
             history = self.model.fit(X_train, y_train, batch_size=self.batch_size, epochs=self.epochs,
