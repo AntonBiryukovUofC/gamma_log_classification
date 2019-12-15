@@ -22,8 +22,8 @@ def main(start_fold,gpu):
     sess = tf.Session(config=config)
     set_session(sess)  # set this TensorFlow session as the default session for Keras
 
-    GetData = DataGenerator(dataset_mode='lr')
-    CV = Pipeline(GetData, DL_model, start_fold, gpu,model_name=MODEL_PATH + 'LSTM_model_lr')
+    GetData = DataGenerator(dataset_mode='ud')
+    CV = Pipeline(GetData, DL_model, start_fold, gpu,model_name=MODEL_PATH + 'LSTM_model_ud')
     score = CV.train()
     log.info(f'Model accuracy = {score}')
 
