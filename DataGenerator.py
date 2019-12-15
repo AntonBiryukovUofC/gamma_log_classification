@@ -108,12 +108,12 @@ class DataGenerator:
                  train_name=TRAIN_NAME,
                  input_size=INPUT_SIZE,
                  target=TARGET,
-                 scale=SCALE,
+                 dataset_mode='normal'
                  ):
 
         self.input_size = input_size
         self.target = target
-
+        self.dataset_mode = dataset_mode
         self.X_train, self.y_train, self.X_test = self.load_data(data_path, test_name, train_name)
 
         # self.X_train,self.y_train = self.squeeze_stretch(self.X_train,self.y_train)
@@ -234,6 +234,11 @@ class DataGenerator:
                 y[i, 1100:, :] = y[i, 1096:1100, :]
 
         X = self.rescale_X_to_maxmin(X, note=note)
+        if self.dataset_mode == 'lr':
+            X = np.fliplr(X)
+            y = np.fliplr(y)
+        if self.dataset_mode == 'ud':
+            X = X*(-1)
 
         # for i in range(X.shape[0]):
         #    X[0,:,:] = medfilt(X[0,:,:],3)
