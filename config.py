@@ -8,6 +8,8 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.metrics import accuracy_score
 from scipy.signal import medfilt
+from scipy.signal import hilbert
+from obspy.signal.filter import envelope
 
 #deep learning
 #keras
@@ -63,3 +65,12 @@ DEBUG_FOLDER = './data/debug/'
 
 for f in [PIC_FOLDER,STACKING_FOLDER,SUBMIT_FOLDER,DEBUG_FOLDER]:
     os.makedirs(f,exist_ok=True)
+
+
+import tensorflow as tf
+from tensorflow.compat.v1.keras.backend import set_session
+config = tf.compat.v1.ConfigProto()
+config.gpu_options.allow_growth = True  # dynamically grow the memory used on the GPU
+config.log_device_placement = True  # to log device placement (on which device the operation ran)
+sess = tf.compat.v1.Session(config=config)
+set_session(sess)

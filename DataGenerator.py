@@ -22,11 +22,15 @@ def rescale_one_row(s):
     s_fit = s[idx].reshape(-1, 1)
     model = make_pipeline(PolynomialFeatures(degree=1), RANSACRegressor(min_samples=250))
     model.fit(x_fit, s_fit)
-    s_new = s.reshape(-1, 1) - model.predict(x.reshape(-1, 1))
+    s_new = s.reshape(-1, 1) / model.predict(x.reshape(-1, 1))
     # top = np.quantile(s_new, 0.7)
     # bottom = np.quantile(s_new, 0.05)
     # new_row = (s_new - bottom) / (top - bottom) - 0.5
     new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s_new)
+
+
+
+
     return new_row
 
 
@@ -98,6 +102,25 @@ def get_stretch_well_parallel(X_train, y_train, scale=2):
     y_new = np.concatenate([r[1] for r in results], axis=0)
 
     return X_new, y_new
+
+
+def envelope_scaling(X):
+
+    scaler = MinMaxScaler(feature_range=(-0.5, 0.5))
+
+    for i in range(X.shape[0]):
+        X[i,:,0] =  X[i,:,0] / np.abs(hilbert(X[i,:,0]))[:]
+
+        if i == 1:
+            break
+
+    fig, ax = plt.subplots()
+    ax.plot(X[0,:,0])
+    plt.show()
+
+    #X = .fit_transform(X)
+
+    return X
 
 
 class DataGenerator:
@@ -180,7 +203,7 @@ class DataGenerator:
         list_wells = [X[i, :] for i in range(X.shape[0])]
         X_new = X.copy()
 
-        with concurrent.futures.ProcessPoolExecutor(max_workers=10) as executor:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
             results = list(tqdm(executor.map(rescale_one_row, list_wells), total=len(list_wells)))
 
         for i in range(X.shape[0]):
@@ -234,6 +257,8 @@ class DataGenerator:
                 y[i, 1100:, :] = y[i, 1096:1100, :]
 
         X = self.rescale_X_to_maxmin(X, note=note)
+
+        #X = envelope_scaling(X)
 
         # for i in range(X.shape[0]):
         #    X[0,:,:] = medfilt(X[0,:,:],3)
