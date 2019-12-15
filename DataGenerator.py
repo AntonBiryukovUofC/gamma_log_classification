@@ -114,7 +114,7 @@ class DataGenerator:
         self.input_size = input_size
         self.target = target
 
-        self.X_train, self.y_train, self.X_test = self.load_data(data_path, test_name, train_name)
+        self.X_train, self.y_train, self.X_test, self.df_train_xstart, self.y_train_xstart = self.load_data(data_path, test_name, train_name)
 
         # self.X_train,self.y_train = self.squeeze_stretch(self.X_train,self.y_train)
 
@@ -145,6 +145,19 @@ class DataGenerator:
         diff_sig1[:, :-1, :] = diff_sig
         self.X_test = np.concatenate((self.X_test, diff_sig1), axis=2)
 
+
+        # apply subband decomposition
+        SBD_arr = SBD(self.df_train_xstart)
+        self.df_train_xstart = np.concatenate((self.df_train_xstart, SBD_arr), axis=2)
+
+        diff_sig = np.diff(self.df_train_xstart, axis=1)
+        diff_sig1 = np.zeros((diff_sig.shape[0], diff_sig.shape[1] + 1, diff_sig.shape[2]))
+        diff_sig1[:, :-1, :] = diff_sig
+        self.df_train_xstart = np.concatenate((self.df_train_xstart, diff_sig1), axis=2)
+
+
+
+
         del SBD_arr, diff_sig1
         gc.collect()
 
@@ -154,14 +167,21 @@ class DataGenerator:
         df_test = pd.read_csv(data_path + test_name, index_col=None, header=0)
         self.df_test = df_test
 
+        df_train_xsart = pd.read_csv(data_path + 'train.csv', index_col=None, header=0)
+        df_train_xsart['well_id'] += 4000
+
         df_test['label'] = np.nan
 
         df_train = pd.read_csv(data_path + train_name, index_col=None, header=0)
 
         df_train, y_train = self.preprocessing_initial(df_train.drop('row_id', axis=1), note='Train')
+        df_train_xstart, y_train_xstart = self.preprocessing_initial(df_train_xsart.drop('row_id', axis=1), note='Train_xstart')
+
         df_test, y_test = self.preprocessing_initial(df_test.drop('row_id', axis=1), note='Test')
 
-        return df_train, y_train, df_test
+
+
+        return df_train, y_train, df_test, df_train_xstart, y_train_xstart
 
     def get_train_val(self, train_ind, val_ind):
 
@@ -172,6 +192,9 @@ class DataGenerator:
         # get validation samples
         X_val = self.X_train[val_ind, :, :]
         y_val = self.y_train[val_ind, :, :]
+
+        X_train = np.concatenate((X_train, self.df_train_xstart), axis=0)
+        y_train = np.concatenate((y_train, self.y_train_xstart), axis=0)
 
         return X_train, y_train, X_val, y_val
 
