@@ -27,6 +27,8 @@ def rescale_one_row(s):
 
     new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s)
 
+
+
     return new_row
 
 
@@ -195,13 +197,24 @@ class DataGenerator:
         df_train = pd.read_csv(data_path + train_name, index_col=None, header=0)
 
         df_train, y_train = self.preprocessing_initial(df_train.drop('row_id', axis=1), note='Train')
+
         df_train_xstart, y_train_xstart = self.preprocessing_initial(df_train_xstart.drop('row_id', axis=1), note='Train_xstart')
+        df_train_xstart = self.augment_xstarter_data(df_train_xstart)
+
 
         df_test, y_test = self.preprocessing_initial(df_test.drop('row_id', axis=1), note='Test')
 
 
 
         return df_train, y_train, df_test, df_train_xstart, y_train_xstart
+
+
+    def augment_xstarter_data(self,X):
+
+        for i in range(X.shape[0]):
+            X[i,:,0] = X[i,:,0] + 0.06*np.random.normal(size=(X.shape[1]))
+
+        return X
 
     def get_train_val(self, train_ind, val_ind):
 
