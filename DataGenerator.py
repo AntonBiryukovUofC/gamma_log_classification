@@ -1,33 +1,31 @@
 # import
 import concurrent
-import random
-from scipy.signal import resample
-from sklearn.linear_model import RANSACRegressor
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import PolynomialFeatures
-from tqdm import trange, tqdm
-
-from config import *
-from Decompose.SBD import *
 
 from sklearn.preprocessing import MinMaxScaler
+from tqdm import tqdm
 
+from Decompose.SBD import *
+
+
+# def rescale_one_row(s):
+#     min_val = np.quantile(s, 0.1)
+#     x = np.arange(s.shape[0]).reshape(-1, 1)
+#     idx = s > min_val
+#     x_fit = x[idx].reshape(-1, 1)
+#     s_fit = s[idx].reshape(-1, 1)
+#     model = make_pipeline(PolynomialFeatures(degree=1), RANSACRegressor(min_samples=250))
+#     model.fit(x_fit, s_fit)
+#     s_new = s.reshape(-1, 1) - model.predict(x.reshape(-1, 1))
+#     # top = np.quantile(s_new, 0.7)
+#     # bottom = np.quantile(s_new, 0.05)
+#     # new_row = (s_new - bottom) / (top - bottom) - 0.5
+#     new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s_new)
+#     return new_row
 
 def rescale_one_row(s):
-    min_val = np.quantile(s, 0.1)
-    x = np.arange(s.shape[0]).reshape(-1, 1)
-    idx = s > min_val
-    x_fit = x[idx].reshape(-1, 1)
-    s_fit = s[idx].reshape(-1, 1)
-    model = make_pipeline(PolynomialFeatures(degree=1), RANSACRegressor(min_samples=250))
-    model.fit(x_fit, s_fit)
-    s_new = s.reshape(-1, 1) - model.predict(x.reshape(-1, 1))
-    # top = np.quantile(s_new, 0.7)
-    # bottom = np.quantile(s_new, 0.05)
-    # new_row = (s_new - bottom) / (top - bottom) - 0.5
-    new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s_new)
+    new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s)
     return new_row
+
 
 
 def to_ohe(x, n_values=5):
@@ -113,7 +111,7 @@ class DataGenerator:
 
         self.input_size = input_size
         self.target = target
-
+        self.dataset_mode = dataset_mode
         self.X_train, self.y_train, self.X_test, self.df_train_xstart, self.y_train_xstart = self.load_data(data_path, test_name, train_name)
 
         # self.X_train,self.y_train = self.squeeze_stretch(self.X_train,self.y_train)
