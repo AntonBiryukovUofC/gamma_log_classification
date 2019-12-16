@@ -1,4 +1,8 @@
 # import
+from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import KFold
+
 from config import *
 from DataGenerator import *
 
