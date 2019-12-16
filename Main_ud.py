@@ -1,14 +1,14 @@
 #import modules
-from DataGenerator import *
-from Pipeline import *
-from config import *
-import sys
 import logging as log
-import click
 import os
 
+import click
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
+
+from Pipeline import *
+from config import *
+
 
 @click.command()
 @click.option('--start_fold', default=0, help='fold to train')

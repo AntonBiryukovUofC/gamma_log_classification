@@ -1,36 +1,20 @@
 # import
 import concurrent
+import gc
 
+from scipy.signal import resample, hilbert
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import MinMaxScaler
 from tqdm import tqdm
-
+import pandas as pd
 from Decompose.SBD import *
+import matplotlib.pyplot as plt
 
-
-# def rescale_one_row(s):
-#     min_val = np.quantile(s, 0.1)
-#     x = np.arange(s.shape[0]).reshape(-1, 1)
-#     idx = s > min_val
-#     x_fit = x[idx].reshape(-1, 1)
-#     s_fit = s[idx].reshape(-1, 1)
-#     model = make_pipeline(PolynomialFeatures(degree=1), RANSACRegressor(min_samples=250))
-#     model.fit(x_fit, s_fit)
-#     s_new = s.reshape(-1, 1) - model.predict(x.reshape(-1, 1))
-#     # top = np.quantile(s_new, 0.7)
-#     # bottom = np.quantile(s_new, 0.05)
-#     # new_row = (s_new - bottom) / (top - bottom) - 0.5
-#     new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s_new)
-#     return new_row
 
 def rescale_one_row(s):
-
-
     new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s)
 
-
-
     return new_row
-
 
 
 def to_ohe(x, n_values=5):
@@ -90,9 +74,6 @@ def get_stretch_well_parallel(X_train, y_train, scale=2):
     new_length = scale * X_train.shape[1]
     print(f'New length {new_length}')
 
-    y_new = np.zeros((y_train.shape[0], new_length, y_train.shape[2]))
-    X_new = np.zeros((X_train.shape[0], new_length, X_train.shape[2]))
-
     list_wells = [(X_train[i, :, :], y_train[i, :, :]) for i in range(X_train.shape[0])]
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=10) as executor:
@@ -104,20 +85,15 @@ def get_stretch_well_parallel(X_train, y_train, scale=2):
 
 
 def envelope_scaling(X):
-
-    scaler = MinMaxScaler(feature_range=(-0.5, 0.5))
-
     for i in range(X.shape[0]):
-        X[i,:,0] =  X[i,:,0] / np.abs(hilbert(X[i,:,0]))[:]
+        X[i, :, 0] = X[i, :, 0] / np.abs(hilbert(X[i, :, 0]))[:]
 
         if i == 1:
             break
 
     fig, ax = plt.subplots()
-    ax.plot(X[0,:,0])
+    ax.plot(X[0, :, 0])
     plt.show()
-
-    #X = .fit_transform(X)
 
     return X
 
@@ -136,18 +112,13 @@ class DataGenerator:
         self.input_size = input_size
         self.target = target
         self.dataset_mode = dataset_mode
-        self.X_train, self.y_train, self.X_test, self.df_train_xstart, self.y_train_xstart = self.load_data(data_path, test_name, train_name)
+        self.X_train, self.y_train, self.X_test, self.df_train_xstart, self.y_train_xstart = self.load_data(data_path,
+                                                                                                            test_name,
+                                                                                                            train_name)
 
         # self.X_train,self.y_train = self.squeeze_stretch(self.X_train,self.y_train)
 
         # self.X_test, dummy = self.squeeze_stretch(self.X_test, self.y_train[self.X_test.shape[0],:,:])
-
-        """ 
-        #self.X_train, self.y_train = get_stretch_well_parallel(X_train=self.X_train, y_train=self.y_train, scale=scale)
-        #self.X_test, dummy = get_stretch_well_parallel(X_train=self.X_test,
-                                                       y_train=self.y_train[0:self.X_test.shape[0], :, :],
-                                                       scale=scale)
-        """
 
         # apply subband decomposition
         SBD_arr = SBD(self.X_train)
@@ -167,7 +138,6 @@ class DataGenerator:
         diff_sig1[:, :-1, :] = diff_sig
         self.X_test = np.concatenate((self.X_test, diff_sig1), axis=2)
 
-
         # apply subband decomposition
         SBD_arr = SBD(self.df_train_xstart)
         self.df_train_xstart = np.concatenate((self.df_train_xstart, SBD_arr), axis=2)
@@ -176,9 +146,6 @@ class DataGenerator:
         diff_sig1 = np.zeros((diff_sig.shape[0], diff_sig.shape[1] + 1, diff_sig.shape[2]))
         diff_sig1[:, :-1, :] = diff_sig
         self.df_train_xstart = np.concatenate((self.df_train_xstart, diff_sig1), axis=2)
-
-
-
 
         del SBD_arr, diff_sig1
         gc.collect()
@@ -198,21 +165,18 @@ class DataGenerator:
 
         df_train, y_train = self.preprocessing_initial(df_train.drop('row_id', axis=1), note='Train')
 
-        df_train_xstart, y_train_xstart = self.preprocessing_initial(df_train_xstart.drop('row_id', axis=1), note='Train_xstart')
+        df_train_xstart, y_train_xstart = self.preprocessing_initial(df_train_xstart.drop('row_id', axis=1),
+                                                                     note='Train_xstart')
         df_train_xstart = self.augment_xstarter_data(df_train_xstart)
-
 
         df_test, y_test = self.preprocessing_initial(df_test.drop('row_id', axis=1), note='Test')
 
-
-
         return df_train, y_train, df_test, df_train_xstart, y_train_xstart
 
-
-    def augment_xstarter_data(self,X):
+    def augment_xstarter_data(self, X):
 
         for i in range(X.shape[0]):
-            X[i,:,0] = X[i,:,0] + 0.06*np.random.normal(size=(X.shape[1]))
+            X[i, :, 0] = X[i, :, 0] + 0.06 * np.random.normal(size=(X.shape[1]))
 
         return X
 
@@ -294,9 +258,9 @@ class DataGenerator:
             X = np.fliplr(X)
             y = np.fliplr(y)
         if self.dataset_mode == 'ud':
-            X = X*(-1)
+            X = X * (-1)
 
-        #X = envelope_scaling(X)
+        # X = envelope_scaling(X)
 
         # for i in range(X.shape[0]):
         #    X[0,:,:] = medfilt(X[0,:,:],3)
