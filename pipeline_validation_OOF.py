@@ -1,4 +1,7 @@
 # import
+from keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from sklearn.model_selection import KFold
+
 from config import *
 from DataGenerator import *
 import pickle
