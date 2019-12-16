@@ -97,11 +97,11 @@ class Pipeline():
 start_fold = 0
 test = pd.read_csv('./data/raw/test_cax.csv')
 path = "./data/weights/"
-weights_location_list = [path+"LSTM_model_0_96815.h5",
-                         path+"LSTM_model_1_96930.h5",
-                         path+"LSTM_model_2_96746.h5",
-                         path+"LSTM_model_3_96909.h5",
-                         path+"LSTM_model_4_96770.h5"]
+weights_location_list = [path+"LSTM_model_0_0.h5",
+                         path+"LSTM_model_1_0.h5",
+                         path+"LSTM_model_2_0.h5",
+                         path+"LSTM_model_3_0.h5",
+                         path+"LSTM_model_4_0.h5"]
 CV = Pipeline(DL_model, start_fold)
 pred, pred_test = CV.validation(weights_location_list)
 
@@ -114,4 +114,4 @@ with open(file_pickle, 'wb') as f:
     pickle.dump(pred, f)
 
 submit = prepare_test(pred_test, test)
-submit[['row_id', 'label']].to_csv('./data/result/LSTM_submit.csv', index=False)
+submit[['unique_id', 'label']].to_csv('./data/result/LSTM_submit.csv', index=False)
