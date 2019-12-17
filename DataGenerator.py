@@ -98,10 +98,21 @@ def envelope_scaling(X):
     return X
 
 
-def add_linear_drift(x,slope):
+def add_linear_drift_shift(x, slope,labels=None,h=0.25,l=-0.25):
     delta = np.arange(x.shape[0]) * slope
     y=x + delta
+    if labels is not None:
+        y_series = pd.Series(labels)
+        groups = (y_series != y_series.shift(1)).cumsum().fillna('pad')
+        groups.index=y_series.index
+        groups[y_series==0] = -20
+        rand_grp_shift = np.random.uniform(l, h, groups.unique().shape[0])
+        map_grp = dict(zip(groups.unique(), rand_grp_shift))
+        shifts = np.array([map_grp[x] for x in groups])
+        y = y+shifts
+
     return y
+
 
 
 class DataGenerator:
@@ -243,15 +254,15 @@ class DataGenerator:
             print(f'Adding trends to {note}')
         for i in range(len(train_wells)):
 
+            temp = label[i * 1100:(i + 1) * 1100]
+
             GR_temp = GR[i * 1100:(i + 1) * 1100]
             if add_trend:
-                GR_temp = add_linear_drift(GR_temp,slope[i])
+                GR_temp = add_linear_drift_shift(GR_temp, slope[i], labels=temp)
             GR_temp = np.reshape(GR_temp, [GR_temp.shape[0], 1])
 
             X[i, :1100, 0] = GR_temp[:, 0]
             X[i, 1100:, 0] = X[i, 1096:1100, 0]
-
-            temp = label[i * 1100:(i + 1) * 1100]
 
             for j in range(1100):
                 if temp[j] == 0:
