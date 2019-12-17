@@ -98,6 +98,12 @@ def envelope_scaling(X):
     return X
 
 
+def add_linear_drift(x,slope):
+    delta = np.arange(x.shape[0]) * slope
+    y=x + delta
+    return y
+
+
 class DataGenerator:
 
     def __init__(self,
@@ -106,9 +112,11 @@ class DataGenerator:
                  train_name=TRAIN_NAME,
                  input_size=INPUT_SIZE,
                  target=TARGET,
-                 dataset_mode='normal'
+                 dataset_mode='normal',
+                 add_trend=False
                  ):
 
+        self.add_trend = add_trend
         self.input_size = input_size
         self.target = target
         self.dataset_mode = dataset_mode
@@ -165,8 +173,9 @@ class DataGenerator:
 
         df_train, y_train = self.preprocessing_initial(df_train.drop('row_id', axis=1), note='Train')
 
+
         df_train_xstart, y_train_xstart = self.preprocessing_initial(df_train_xstart.drop('row_id', axis=1),
-                                                                     note='Train_xstart')
+                                                                     note='Train_xstart',add_trend=self.add_trend)
         df_train_xstart = self.augment_xstarter_data(df_train_xstart)
 
         df_test, y_test = self.preprocessing_initial(df_test.drop('row_id', axis=1), note='Test')
@@ -208,7 +217,7 @@ class DataGenerator:
 
         return X_new
 
-    def preprocessing_initial(self, df, note='MinMax'):
+    def preprocessing_initial(self, df, note='MinMax',add_trend=False):
 
         train_wells = df['well_id'].unique().tolist()
 
@@ -228,10 +237,15 @@ class DataGenerator:
 
         GR = df['GR'].values
         label = df['label'].values
-
+        np.random.seed(42)
+        slope = np.random.uniform(low=5e-3,high=5e-2,size=len(train_wells))
+        if add_trend:
+            print(f'Adding trends to {note}')
         for i in range(len(train_wells)):
 
             GR_temp = GR[i * 1100:(i + 1) * 1100]
+            if add_trend:
+                GR_temp = add_linear_drift(GR_temp,slope[i])
             GR_temp = np.reshape(GR_temp, [GR_temp.shape[0], 1])
 
             X[i, :1100, 0] = GR_temp[:, 0]

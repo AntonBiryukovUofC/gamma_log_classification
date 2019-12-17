@@ -13,7 +13,8 @@ from keras.backend.tensorflow_backend import set_session
 @click.command()
 @click.option('--start_fold', default=0, help='fold to train')
 @click.option('--gpu', default=0, help='gpu to train on')
-def main(start_fold,gpu):
+@click.option('--add_trend', default=False, help='add trend to xstarter ?')
+def main(start_fold,gpu,add_trend):
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
 
@@ -22,7 +23,7 @@ def main(start_fold,gpu):
     sess = tf.Session(config=config)
     set_session(sess)  # set this TensorFlow session as the default session for Keras
 
-    GetData = DataGenerator()
+    GetData = DataGenerator(add_trend=add_trend)
     CV = Pipeline(GetData, DL_model, start_fold, gpu)
     score = CV.train()
     log.info(f'Model accuracy = {score}')
