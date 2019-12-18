@@ -119,7 +119,7 @@ class Pipeline():
             if fold != self.start_fold:
                 continue
 
-           # _, _, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
+            _, _, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
 
             gen_function = batch_generator(X_train,X_train_xstart,y_train,y_train_xstart,batch_size=32)
             checkpointer = ModelCheckpoint(self.model_name + '_' + str(fold) + f'_{self.gpu}.h5',
@@ -133,7 +133,8 @@ class Pipeline():
 
             # train model
             history = self.model.fit_generator(generator=gen_function,  epochs=self.epochs,steps_per_epoch=7000 // 64,
-                                     callbacks=[self.earlystopper, checkpointer,self.reduce_lr])
+                                     callbacks=[self.earlystopper, checkpointer,self.reduce_lr],
+                                               validation_data=(X_val,y_val))
 
             pred_val[val_ind, :, :] = self.model.predict(X_val)
 

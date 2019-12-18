@@ -20,7 +20,7 @@ def rescale_X_to_maxmin( X, note='note'):
     X_new = X.copy()
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
-        results = list(tqdm(executor.map(rescale_one_row, list_wells), total=len(list_wells)))
+        results = list(executor.map(rescale_one_row, list_wells))
 
     for i in range(X.shape[0]):
         X_new[i, :, 0] = results[i].reshape(1, -1)
