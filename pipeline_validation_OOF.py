@@ -97,11 +97,11 @@ class Pipeline():
 start_fold = 0
 test = pd.read_csv('./data/raw/test_cax.csv')
 path = "./data/weights/"
-weights_location_list = [path+"LSTM_model_0_0.h5",
-                         path+"LSTM_model_1_0.h5",
-                         path+"LSTM_model_2_0.h5",
-                         path+"LSTM_model_3_0.h5",
-                         path+"LSTM_model_4_0.h5"]
+weights_location_list = [path+"LSTM_model_0_97159.h5",
+                         path+"LSTM_model_1_97207.h5",
+                         path+"LSTM_model_2_97138.h5",
+                         path+"LSTM_model_3_97309.h5",
+                         path+"LSTM_model_4_97075.h5"]
 CV = Pipeline(DL_model, start_fold)
 pred, pred_test = CV.validation(weights_location_list)
 

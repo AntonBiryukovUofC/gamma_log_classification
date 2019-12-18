@@ -15,10 +15,10 @@ class Pipeline():
                  model_func,
                  start_fold,
                  gpu,
-
+                 batch_size,
+                 
                  n_fold=N_FOLD,
                  epochs=N_EPOCH,
-                 batch_size=BATCH_SIZE,
                  lr=LR,
                  patience=PATIENCE,
                  min_delta=MIN_DELTA,
@@ -35,7 +35,7 @@ class Pipeline():
         self.model_func = model_func
         self.start_fold = start_fold
         self.gpu = gpu
-
+        
         self.batch_size = batch_size
         self.epochs = epochs
         self.lr = lr
@@ -53,8 +53,8 @@ class Pipeline():
         self.earlystopper = EarlyStopping(monitor='val_accuracy', patience=patience, verbose=1, mode='max',
                                           min_delta=min_delta)
 
-        self.reduce_lr = ReduceLROnPlateau(monitor='val_accuracy', factor=0.1,
-                                           patience=int(patience / 3), min_lr=self.lr / 1000, verbose=1, mode='max', )
+        self.reduce_lr = ReduceLROnPlateau(monitor='val_accuracy', factor=0.3,
+                                           patience=int(patience / 6), min_lr=self.lr / 1000, verbose=1, mode='max', )
 
     def train(self,optimizer=None):
         if optimizer is None:
@@ -74,7 +74,7 @@ class Pipeline():
 
             X_train, y_train, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
 
-            checkpointer = ModelCheckpoint(self.model_name + '_' + str(fold) + f'_{self.gpu}.h5',
+            checkpointer = ModelCheckpoint(f'{self.model_name}_{fold}_{self.gpu}_{self.batch_size}'+'_{epoch:2d}_{val_accuracy:.5f}.h5',
                                            monitor='val_accuracy',
                                            mode='max', verbose=1, save_best_only=True)
 

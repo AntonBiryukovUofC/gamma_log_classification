@@ -13,8 +13,9 @@ from keras.backend.tensorflow_backend import set_session
 @click.command()
 @click.option('--start_fold', default=0, help='fold to train')
 @click.option('--gpu', default=0, help='gpu to train on')
+@click.option('--batch', default=64, help='batch size')
 @click.option('--add_trend', help='add trend to xstarter ?',is_flag=True)
-def main(start_fold,gpu,add_trend):
+def main(start_fold,gpu,batch,add_trend):
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
 
@@ -25,7 +26,7 @@ def main(start_fold,gpu,add_trend):
     if add_trend:
         log.info('Will add trend to XEEK Train data')
     GetData = DataGenerator(add_trend=add_trend)
-    CV = Pipeline(GetData, DL_model, start_fold, gpu)
+    CV = Pipeline(GetData, DL_model, start_fold, gpu, batch)
     score = CV.train()
     log.info(f'Model accuracy = {score}')
 
