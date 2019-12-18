@@ -6,7 +6,7 @@ import sys
 import logging as log
 import click
 import os
-
+from adabound import AdaBound
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 
@@ -26,7 +26,7 @@ def main(start_fold,gpu,add_trend):
         log.info('Will add trend to XEEK Train data')
     GetData = DataGenerator(add_trend=add_trend)
     CV = Pipeline(GetData, DL_model, start_fold, gpu)
-    score = CV.train()
+    score = CV.train(optimizer=AdaBound(learning_rate=3e-5))
     log.info(f'Model accuracy = {score}')
 
 if __name__ == "__main__":

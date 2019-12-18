@@ -85,7 +85,7 @@ class Pipeline():
 
             # train model
             history = self.model.fit(X_train, y_train, batch_size=self.batch_size, epochs=self.epochs,
-                                     callbacks=[self.earlystopper, checkpointer, self.reduce_lr],
+                                     callbacks=[self.earlystopper, checkpointer],
                                      validation_data=(X_val, y_val))
 
             pred_val[val_ind, :, :] = self.model.predict(X_val)
