@@ -108,8 +108,6 @@ class Pipeline():
         # kfold cross-validation
         kf = KFold(self.n_fold, shuffle=True, random_state=42)
 
-
-
         predictions = np.zeros((self.GetData.X_test.shape[0], self.GetData.X_test.shape[1], 5))
         pred_val = np.zeros((self.GetData.X_train.shape[0], self.GetData.X_train.shape[1], 5))
 
@@ -121,7 +119,7 @@ class Pipeline():
 
             _, _, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
 
-            gen_function = batch_generator(X_train,X_train_xstart,y_train,y_train_xstart,batch_size=32)
+            gen_function = batch_generator(X_train, X_train_xstart, y_train, y_train_xstart, batch_size=32)
             checkpointer = ModelCheckpoint(self.model_name + '_' + str(fold) + f'_{self.gpu}.h5',
                                            monitor='val_accuracy',
                                            mode='max', verbose=1, save_best_only=True)
@@ -132,9 +130,9 @@ class Pipeline():
             self.model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
             # train model
-            history = self.model.fit_generator(generator=gen_function,  epochs=self.epochs,steps_per_epoch=7000 // 64,
-                                     callbacks=[self.earlystopper, checkpointer,self.reduce_lr],
-                                               validation_data=(X_val,y_val))
+            history = self.model.fit_generator(generator=gen_function, epochs=self.epochs, steps_per_epoch=7000 // 64,
+                                               callbacks=[self.earlystopper, checkpointer, self.reduce_lr],
+                                               validation_data=(X_val, y_val))
 
             pred_val[val_ind, :, :] = self.model.predict(X_val)
 
