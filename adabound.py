@@ -1,7 +1,8 @@
 import tensorflow as tf
-from keras.optimizers import Optimizer
+from tensorflow.python.keras.optimizer_v2.optimizer_v2 import OptimizerV2
 
-class AdaBound(Optimizer):
+
+class AdaBound(OptimizerV2):
     """AdaBound optimizer.
     Default parameters follow those provided in the original paper.
     # Arguments

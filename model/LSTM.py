@@ -2,12 +2,12 @@
 import numpy as np
 import os
 import numpy as np
-from keras.models import *
-from keras.layers import *
+from tensorflow.python.keras.models import *
+from tensorflow.python.keras.layers import *
 
 
 def DL_model(input_size, hyperparams):
-    from keras.layers import TimeDistributed
+    from tensorflow.python.keras.layers import TimeDistributed
 
     dropout = hyperparams['dropout']
 
