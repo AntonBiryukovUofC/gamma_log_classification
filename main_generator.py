@@ -5,7 +5,7 @@ from sklearn.model_selection import KFold
 
 from config import *
 from DataGenerator import *
-from utils import augment_xstarter_data, rescale_X_to_maxmin, load_data
+from utils import augment_xstarter_data, rescale_X_to_maxmin
 
 
 def batch_generator(X, Xs, y, ys, batch_size=16):
@@ -103,12 +103,8 @@ class Pipeline():
         if optimizer is None:
             optimizer = Adam(self.lr)
 
-        X_train, y_train, X_test, X_train_xstart, y_train_xstart = load_data()
-
         # kfold cross-validation
         kf = KFold(self.n_fold, shuffle=True, random_state=42)
-
-
 
         predictions = np.zeros((self.GetData.X_test.shape[0], self.GetData.X_test.shape[1], 5))
         pred_val = np.zeros((self.GetData.X_train.shape[0], self.GetData.X_train.shape[1], 5))
@@ -119,9 +115,8 @@ class Pipeline():
             if fold != self.start_fold:
                 continue
 
-            _, _, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
+            X_train, y_train, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
 
-            gen_function = batch_generator(X_train,y_train,X_train_xstart,y_train_xstart,batch_size=64)
             checkpointer = ModelCheckpoint(self.model_name + '_' + str(fold) + f'_{self.gpu}.h5',
                                            monitor='val_accuracy',
                                            mode='max', verbose=1, save_best_only=True)
@@ -132,7 +127,7 @@ class Pipeline():
             self.model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
             # train model
-            history = self.model.fit_generator(generator=gen_function,  epochs=self.epochs,steps_per_epoch=7000 // 64,
+            history = self.model.fit(X_train, y_train, batch_size=self.batch_size, epochs=self.epochs,
                                      callbacks=[self.earlystopper, checkpointer],
                                      validation_data=(X_val, y_val))
 

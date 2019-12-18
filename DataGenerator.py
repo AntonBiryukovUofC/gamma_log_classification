@@ -22,97 +22,20 @@ def to_ohe(x, n_values=5):
     return y
 
 
-def stretch_well(s, y, scale=1.1):
-    knn = KNeighborsClassifier(n_neighbors=3, weights='uniform')
-
-    if scale >= 1:
-        n_new = scale * s.shape[0]
-        s_new = resample(s, int(n_new))
-        y_new = resample(y, int(n_new))
-        confident_samples = np.ceil(y_new) == np.round(y_new)
-        # Get KNN on confident samples
-        x_axis = np.arange(s_new.shape[0])
-        X = x_axis[confident_samples].reshape(-1, 1)
-        y = np.abs(np.ceil(y_new[confident_samples]))
-        knn.fit(X, y)
-        y_new = knn.predict(x_axis.reshape(-1, 1))
-        result_x = s_new
-        result_y = y_new
-        result_y[result_y > 4] = 4
-        result_y[result_y < 0] = 0
-    else:
-        raise ValueError
-    return result_x, result_y
-
-
-def get_stretch_well(x, scale=2):
-    X_train, y_train = x[0], x[1]
-
-    if len(X_train.shape) == 2:
-        X_train = np.expand_dims(X_train, axis=0)
-        y_train = np.expand_dims(y_train, axis=0)
-    n_wells = X_train.shape[0]
-    new_length = scale * X_train.shape[1]
-    y_new = np.zeros((y_train.shape[0], new_length, y_train.shape[2]))
-    X_new = np.zeros((X_train.shape[0], new_length, X_train.shape[2]))
-
-    for i in range(n_wells):
-        for j in range(X_train.shape[2]):
-            s = X_train[i, :, j]
-            labels_well = np.argmax(y_train[i, :, :], axis=1)
-            s_new, label = stretch_well(s, labels_well, scale=scale)
-
-            X_new[i, :, j] = s_new
-            y_new[i, :, :] = to_ohe(label.astype(int))
-
-    return X_new, y_new
-
-
-def get_stretch_well_parallel(X_train, y_train, scale=2):
-    n_wells = X_train.shape[0]
-    print(f'Dealing with {n_wells}')
-    new_length = scale * X_train.shape[1]
-    print(f'New length {new_length}')
-
-    list_wells = [(X_train[i, :, :], y_train[i, :, :]) for i in range(X_train.shape[0])]
-
-    with concurrent.futures.ProcessPoolExecutor(max_workers=10) as executor:
-        results = list(tqdm(executor.map(get_stretch_well, list_wells), total=len(list_wells)))
-    X_new = np.concatenate([r[0] for r in results], axis=0)
-    y_new = np.concatenate([r[1] for r in results], axis=0)
-
-    return X_new, y_new
-
-
-def envelope_scaling(X):
-    for i in range(X.shape[0]):
-        X[i, :, 0] = X[i, :, 0] / np.abs(hilbert(X[i, :, 0]))[:]
-
-        if i == 1:
-            break
-
-    fig, ax = plt.subplots()
-    ax.plot(X[0, :, 0])
-    plt.show()
-
-    return X
-
-
-def add_linear_drift_shift(x, slope,labels=None,h=0.25,l=-0.25):
+def add_linear_drift_shift(x, slope, labels=None, h=0.33, l=-0.33):
     delta = np.arange(x.shape[0]) * slope
-    y=x + delta
+    y = x + delta
     if labels is not None:
         y_series = pd.Series(labels)
         groups = (y_series != y_series.shift(1)).cumsum().fillna('pad')
-        groups.index=y_series.index
-        groups[y_series==0] = -20
+        groups.index = y_series.index
+        groups[y_series == 0] = -20
         rand_grp_shift = np.random.uniform(l, h, groups.unique().shape[0])
         map_grp = dict(zip(groups.unique(), rand_grp_shift))
         shifts = np.array([map_grp[x] for x in groups])
-        y = y+shifts
+        y = y + shifts
 
     return y
-
 
 
 class DataGenerator:
@@ -184,9 +107,8 @@ class DataGenerator:
 
         df_train, y_train = self.preprocessing_initial(df_train.drop('row_id', axis=1), note='Train')
 
-
         df_train_xstart, y_train_xstart = self.preprocessing_initial(df_train_xstart.drop('row_id', axis=1),
-                                                                     note='Train_xstart',add_trend=self.add_trend)
+                                                                     note='Train_xstart', add_trend=self.add_trend)
         df_train_xstart = self.augment_xstarter_data(df_train_xstart)
 
         df_test, y_test = self.preprocessing_initial(df_test.drop('row_id', axis=1), note='Test')
@@ -228,7 +150,7 @@ class DataGenerator:
 
         return X_new
 
-    def preprocessing_initial(self, df, note='MinMax',add_trend=False):
+    def preprocessing_initial(self, df, note='MinMax', add_trend=False):
 
         train_wells = df['well_id'].unique().tolist()
 
@@ -249,7 +171,7 @@ class DataGenerator:
         GR = df['GR'].values
         label = df['label'].values
         np.random.seed(42)
-        slope = np.random.uniform(low=5e-3,high=5e-2,size=len(train_wells))
+        slope = np.random.uniform(low=5e-3, high=5e-2, size=len(train_wells))
         if add_trend:
             print(f'Adding trends to {note}')
         for i in range(len(train_wells)):
@@ -258,7 +180,7 @@ class DataGenerator:
 
             GR_temp = GR[i * 1100:(i + 1) * 1100]
             if add_trend:
-                GR_temp = add_linear_drift_shift(GR_temp, slope[i], labels=temp)
+                GR_temp = add_linear_drift_shift(GR_temp, slope[i], labels=temp, l=-25, h=25)
             GR_temp = np.reshape(GR_temp, [GR_temp.shape[0], 1])
 
             X[i, :1100, 0] = GR_temp[:, 0]

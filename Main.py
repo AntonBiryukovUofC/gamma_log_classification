@@ -26,7 +26,7 @@ def main(start_fold,gpu,add_trend):
         log.info('Will add trend to XEEK Train data')
     GetData = DataGenerator(add_trend=add_trend)
     CV = Pipeline(GetData, DL_model, start_fold, gpu)
-    score = CV.train(optimizer=AdaBound(learning_rate=3e-5))
+    score = CV.train()
     log.info(f'Model accuracy = {score}')
 
 if __name__ == "__main__":
