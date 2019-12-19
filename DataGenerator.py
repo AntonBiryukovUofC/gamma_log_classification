@@ -22,22 +22,20 @@ def to_ohe(x, n_values=5):
     return y
 
 
-
-def add_linear_drift_shift(x, slope,labels=None,h=0.25,l=-0.25):
+def add_linear_drift_shift(x, slope, labels=None, h=0.25, l=-0.25):
     delta = np.arange(x.shape[0]) * slope
-    y=x + delta
+    y = x + delta
     if labels is not None:
         y_series = pd.Series(labels)
         groups = (y_series != y_series.shift(1)).cumsum().fillna('pad')
-        groups.index=y_series.index
-        groups[y_series==0] = -20
+        groups.index = y_series.index
+        groups[y_series == 0] = -20
         rand_grp_shift = np.random.uniform(l, h, groups.unique().shape[0])
         map_grp = dict(zip(groups.unique(), rand_grp_shift))
         shifts = np.array([map_grp[x] for x in groups])
-        y = y+shifts
+        y = y + shifts
 
     return y
-
 
 
 class DataGenerator:
@@ -109,9 +107,8 @@ class DataGenerator:
 
         df_train, y_train = self.preprocessing_initial(df_train.drop('row_id', axis=1), note='Train')
 
-
         df_train_xstart, y_train_xstart = self.preprocessing_initial(df_train_xstart.drop('row_id', axis=1),
-                                                                     note='Train_xstart',add_trend=self.add_trend)
+                                                                     note='Train_xstart', add_trend=self.add_trend)
         df_train_xstart = self.augment_xstarter_data(df_train_xstart)
 
         df_test, y_test = self.preprocessing_initial(df_test.drop('row_id', axis=1), note='Test')
@@ -153,7 +150,7 @@ class DataGenerator:
 
         return X_new
 
-    def preprocessing_initial(self, df, note='MinMax',add_trend=False):
+    def preprocessing_initial(self, df, note='MinMax', add_trend=False):
 
         train_wells = df['well_id'].unique().tolist()
 
@@ -161,7 +158,7 @@ class DataGenerator:
         X = np.zeros((
             len(train_wells),
             1104,
-            1
+            2
         ))
 
         # labels
@@ -174,7 +171,7 @@ class DataGenerator:
         GR = df['GR'].values
         label = df['label'].values
         np.random.seed(42)
-        slope = np.random.uniform(low=5e-3,high=5e-2,size=len(train_wells))
+        slope = np.random.uniform(low=5e-3, high=5e-2, size=len(train_wells))
         if add_trend:
             print(f'Adding trends to {note}')
         for i in range(len(train_wells)):
@@ -182,12 +179,20 @@ class DataGenerator:
             temp = label[i * 1100:(i + 1) * 1100]
 
             GR_temp = GR[i * 1100:(i + 1) * 1100]
+            GR_leak = GR_temp * 100
+            GR_leak = GR_leak - np.floor(GR_leak)
+            GR_leak = np.round(GR_leak, 15)
+
             if add_trend:
-                GR_temp = add_linear_drift_shift(GR_temp, slope[i], labels=temp,h=35,l=-35)
+                GR_temp = add_linear_drift_shift(GR_temp, slope[i], labels=temp, h=35, l=-35)
             GR_temp = np.reshape(GR_temp, [GR_temp.shape[0], 1])
+            GR_leak = np.reshape(GR_leak, [GR_leak.shape[0], 1])
 
             X[i, :1100, 0] = GR_temp[:, 0]
+            X[i,:1100, 1] = GR_leak[:,0]
+
             X[i, 1100:, 0] = X[i, 1096:1100, 0]
+            X[i, 1100:, 1] = X[i, 1096:1100, 1]
 
             for j in range(1100):
                 if temp[j] == 0:
