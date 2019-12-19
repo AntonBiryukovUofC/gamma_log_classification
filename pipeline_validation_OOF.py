@@ -6,6 +6,7 @@ from config import *
 from DataGenerator import *
 import pickle
 
+BATCH_SIZE=48
 
 def prepare_test(pred_test, df_test):
     wells = df_test['well_id'].sort_values().unique().tolist()
@@ -17,6 +18,17 @@ def prepare_test(pred_test, df_test):
     for i, df_well in enumerate(list_df_wells):
         df_well['label'] = np.argmax(pred_test[i, :], axis=1)
 
+    result = pd.concat(list_df_wells, axis=0)
+    return result
+
+
+def prepare_df(pred, df, col="label"):
+    wells = df['well_id'].sort_values().unique().tolist()
+    list_df_wells = [df.loc[df['well_id'].isin([w]), :].copy() for w in wells]
+    for df in list_df_wells:
+        df.index = np.arange(df.shape[0])
+    for i, df_well in enumerate(list_df_wells):
+        df_well[col] = np.argmax(pred[i, :], axis=1)
     result = pd.concat(list_df_wells, axis=0)
     return result
 
@@ -95,7 +107,6 @@ class Pipeline():
 
 
 start_fold = 0
-test = pd.read_csv('./data/raw/test_cax.csv')
 path = "./data/weights/"
 weights_location_list = [path+"LSTM_model_0_97159.h5",
                          path+"LSTM_model_1_97207.h5",
@@ -103,15 +114,13 @@ weights_location_list = [path+"LSTM_model_0_97159.h5",
                          path+"LSTM_model_3_97309.h5",
                          path+"LSTM_model_4_97075.h5"]
 CV = Pipeline(DL_model, start_fold)
-pred, pred_test = CV.validation(weights_location_list)
+pred_train, pred_test = CV.validation(weights_location_list)
 
-location_test_ = "./data/test_lstm_preds.pck"
-with open(location_test_, 'wb') as f:
-    pickle.dump(pred_test, f)
 
-file_pickle = './data/LSTM_OOF.pcl'
-with open(file_pickle, 'wb') as f:
-    pickle.dump(pred, f)
-
+test = pd.read_csv('./data/raw/test_cax.csv')
 submit = prepare_test(pred_test, test)
 submit[['unique_id', 'label']].to_csv('./data/result/LSTM_submit.csv', index=False)
+
+train = pd.read_csv('./data/raw/train_cax.csv')
+oof = prepare_df(pred_train, train, "pred_label")
+oof.to_csv('./data/result/oof.csv', index=False)
