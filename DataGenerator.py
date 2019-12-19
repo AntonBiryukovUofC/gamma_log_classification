@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 
 def rescale_one_row(s):
-    new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s)
+    new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s.reshape(-1,1))
 
     return new_row
 
@@ -54,16 +54,16 @@ class DataGenerator:
         self.input_size = input_size
         self.target = target
         self.dataset_mode = dataset_mode
-        self.X_train, self.y_train, self.X_test, self.df_train_xstart, self.y_train_xstart = self.load_data(data_path,
-                                                                                                            test_name,
-                                                                                                            train_name)
+        self.X_train, self.y_train, self.X_test = self.load_data(data_path, test_name,
+                                                                 train_name)
 
         # self.X_train,self.y_train = self.squeeze_stretch(self.X_train,self.y_train)
 
         # self.X_test, dummy = self.squeeze_stretch(self.X_test, self.y_train[self.X_test.shape[0],:,:])
 
         # apply subband decomposition
-        SBD_arr = SBD(self.X_train)
+        shape_train = (self.X_train.shape[0],self.X_train.shape[1],1)
+        SBD_arr = SBD(self.X_train[:,:,0].reshape(shape_train))
         self.X_train = np.concatenate((self.X_train, SBD_arr), axis=2)
 
         diff_sig = np.diff(self.X_train, axis=1)
@@ -72,22 +72,14 @@ class DataGenerator:
         self.X_train = np.concatenate((self.X_train, diff_sig1), axis=2)
 
         # apply subband decomposition
-        SBD_arr = SBD(self.X_test)
+        shape_test = (self.X_test.shape[0], self.X_test.shape[1], 1)
+        SBD_arr = SBD(self.X_test[:,:,0].reshape(shape_test))
         self.X_test = np.concatenate((self.X_test, SBD_arr), axis=2)
 
         diff_sig = np.diff(self.X_test, axis=1)
         diff_sig1 = np.zeros((diff_sig.shape[0], diff_sig.shape[1] + 1, diff_sig.shape[2]))
         diff_sig1[:, :-1, :] = diff_sig
         self.X_test = np.concatenate((self.X_test, diff_sig1), axis=2)
-
-        # apply subband decomposition
-        SBD_arr = SBD(self.df_train_xstart)
-        self.df_train_xstart = np.concatenate((self.df_train_xstart, SBD_arr), axis=2)
-
-        diff_sig = np.diff(self.df_train_xstart, axis=1)
-        diff_sig1 = np.zeros((diff_sig.shape[0], diff_sig.shape[1] + 1, diff_sig.shape[2]))
-        diff_sig1[:, :-1, :] = diff_sig
-        self.df_train_xstart = np.concatenate((self.df_train_xstart, diff_sig1), axis=2)
 
         del SBD_arr, diff_sig1
         gc.collect()
@@ -98,22 +90,15 @@ class DataGenerator:
         df_test = pd.read_csv(data_path + test_name, index_col=None, header=0)
         self.df_test = df_test
 
-        df_train_xstart = pd.read_csv(data_path + 'train.csv', index_col=None, header=0)
-        df_train_xstart['well_id'] += 4000
-
         df_test['label'] = np.nan
 
         df_train = pd.read_csv(data_path + train_name, index_col=None, header=0)
 
         df_train, y_train = self.preprocessing_initial(df_train.drop('row_id', axis=1), note='Train')
-
-        df_train_xstart, y_train_xstart = self.preprocessing_initial(df_train_xstart.drop('row_id', axis=1),
-                                                                     note='Train_xstart', add_trend=self.add_trend)
-        df_train_xstart = self.augment_xstarter_data(df_train_xstart)
-
         df_test, y_test = self.preprocessing_initial(df_test.drop('row_id', axis=1), note='Test')
+        return df_train, y_train, df_test
 
-        return df_train, y_train, df_test, df_train_xstart, y_train_xstart
+    # return df_train, y_train, df_test, df_train_xstart, y_train_xstart
 
     def augment_xstarter_data(self, X):
 
@@ -132,14 +117,12 @@ class DataGenerator:
         X_val = self.X_train[val_ind, :, :]
         y_val = self.y_train[val_ind, :, :]
 
-        X_train = np.concatenate((X_train, self.df_train_xstart), axis=0)
-        y_train = np.concatenate((y_train, self.y_train_xstart), axis=0)
 
         return X_train, y_train, X_val, y_val
 
     def rescale_X_to_maxmin(self, X, note='note'):
         print(f'Performing a rescale on {note}..')
-        list_wells = [X[i, :] for i in range(X.shape[0])]
+        list_wells = [X[i, :, 0] for i in range(X.shape[0])]
         X_new = X.copy()
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
@@ -189,7 +172,7 @@ class DataGenerator:
             GR_leak = np.reshape(GR_leak, [GR_leak.shape[0], 1])
 
             X[i, :1100, 0] = GR_temp[:, 0]
-            X[i,:1100, 1] = GR_leak[:,0]
+            X[i, :1100, 1] = GR_leak[:, 0]
 
             X[i, 1100:, 0] = X[i, 1096:1100, 0]
             X[i, 1100:, 1] = X[i, 1096:1100, 1]
