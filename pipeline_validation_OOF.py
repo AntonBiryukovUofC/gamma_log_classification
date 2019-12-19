@@ -8,20 +8,6 @@ import pickle
 
 BATCH_SIZE=48
 
-def prepare_test(pred_test, df_test):
-    wells = df_test['well_id'].sort_values().unique().tolist()
-    list_df_wells = [df_test.loc[df_test['well_id'].isin([w]), :].copy() for w in wells]
-
-    for df in list_df_wells:
-        df.index = np.arange(df.shape[0])
-
-    for i, df_well in enumerate(list_df_wells):
-        df_well['label'] = np.argmax(pred_test[i, :], axis=1)
-
-    result = pd.concat(list_df_wells, axis=0)
-    return result
-
-
 def prepare_df(pred, df, col="label"):
     wells = df['well_id'].sort_values().unique().tolist()
     list_df_wells = [df.loc[df['well_id'].isin([w]), :].copy() for w in wells]
@@ -82,10 +68,8 @@ class Pipeline():
         # kfold cross-validation
         kf = KFold(self.n_fold, shuffle=True, random_state=42)
 
-        predictions = np.zeros((self.GetData.X_test.shape[0], self.GetData.X_test.shape[1], 5))
-        score = 0
-        pred_val_dict = {}
         predictions_test = np.zeros((self.GetData.X_test.shape[0], 1104, 5))
+        predictions_train = np.zeros((self.GetData.X_train.shape[0], 1104, 5))
 
         for fold, (train_ind, val_ind) in enumerate(kf.split(self.GetData.X_train)):
             print(f'Doing fold {fold}')
@@ -96,29 +80,28 @@ class Pipeline():
             self.model = load_model(weights_loc)
 
             pred_val = self.model.predict(X_val)
-            pred_val_dict[fold] = pred_val.copy()
-            pred_val_dict[f'{fold}_y_val'] = y_val.copy()
-
+            predictions_train[val_ind] += y_val.copy()
             predictions_test += self.model.predict(self.GetData.X_test) / 5
 
         predictions_test = predictions_test[:, :1100:, :]
+        predictions_train = predictions_train[:, :1100:, :]
 
-        return pred_val_dict, predictions_test
+        return predictions_train, predictions_test
 
 
 start_fold = 0
 path = "./data/weights/"
-weights_location_list = [path+"LSTM_model_0_97159.h5",
-                         path+"LSTM_model_1_97207.h5",
-                         path+"LSTM_model_2_97138.h5",
-                         path+"LSTM_model_3_97309.h5",
-                         path+"LSTM_model_4_97075.h5"]
+weights_location_list = [path+"LSTM_model_0_24_38_0.99467.h5",
+                         path+"LSTM_model_1_24_25_0.99451.h5",
+                         path+"LSTM_model_2_24_39_0.99426.h5",
+                         path+"LSTM_model_3_24_29_0.99481.h5",
+                         path+"LSTM_model_4_24_36_0.99486.h5"]
+
 CV = Pipeline(DL_model, start_fold)
 pred_train, pred_test = CV.validation(weights_location_list)
 
-
 test = pd.read_csv('./data/raw/test_cax.csv')
-submit = prepare_test(pred_test, test)
+submit = prepare_df(pred_test, test)
 submit[['unique_id', 'label']].to_csv('./data/result/LSTM_submit.csv', index=False)
 
 train = pd.read_csv('./data/raw/train_cax.csv')
