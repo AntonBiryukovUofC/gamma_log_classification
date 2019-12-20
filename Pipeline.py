@@ -2,9 +2,26 @@
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import KFold
-
+from category_encoders import CountEncoder
 from config import *
 from DataGenerator import *
+
+
+def build_encoder(X_train):
+    all_vals = pd.Series(X_train[:, :, 1].flatten())
+    ce = dict(all_vals.value_counts()/(X_train.shape[0] * X_train.shape[1]))
+    return ce
+
+
+def encode(X, encoder):
+    def func(x):
+        res = encoder.get(x, 0)
+        return res
+
+    f = np.vectorize(func)
+    freq_encoded = f(X[:, :, 1])
+    X = np.concatenate((X, freq_encoded), axis=2)
+    return X
 
 
 class Pipeline():
@@ -16,7 +33,7 @@ class Pipeline():
                  start_fold,
                  gpu,
                  batch_size,
-                 
+
                  n_fold=N_FOLD,
                  epochs=N_EPOCH,
                  lr=LR,
@@ -35,7 +52,7 @@ class Pipeline():
         self.model_func = model_func
         self.start_fold = start_fold
         self.gpu = gpu
-        
+
         self.batch_size = batch_size
         self.epochs = epochs
         self.lr = lr
@@ -56,7 +73,7 @@ class Pipeline():
         self.reduce_lr = ReduceLROnPlateau(monitor='val_accuracy', factor=0.3,
                                            patience=int(patience / 6), min_lr=self.lr / 1000, verbose=1, mode='max', )
 
-    def train(self,optimizer=None):
+    def train(self, optimizer=None):
         if optimizer is None:
             optimizer = Adam(self.lr)
 
@@ -74,14 +91,14 @@ class Pipeline():
 
             X_train, y_train, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
             # Add encoding:
+  #          encoder = build_encoder(X_train)
+ #           X_val = encode(X_val, encoder)
+#            X_train = encode(X_train, encoder)
 
-
-
-
-
-            checkpointer = ModelCheckpoint(f'{self.model_name}_{fold}_{self.gpu}_{self.batch_size}'+'_{epoch:2d}_{val_accuracy:.5f}.h5',
-                                           monitor='val_accuracy',
-                                           mode='max', verbose=1, save_best_only=True)
+            checkpointer = ModelCheckpoint(
+                f'{self.model_name}_{fold}_{self.gpu}_{self.batch_size}' + '_{epoch:2d}_{val_accuracy:.5f}.h5',
+                monitor='val_accuracy',
+                mode='max', verbose=1, save_best_only=True)
 
             self.model = self.model_func(input_size=(self.GetData.X_train.shape[1], self.GetData.X_train.shape[2]),
                                          hyperparams=HYPERPARAM)
