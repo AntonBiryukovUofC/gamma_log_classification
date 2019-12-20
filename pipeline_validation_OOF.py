@@ -97,11 +97,11 @@ class Pipeline():
 
 start_fold = 0
 path = "./data/weights/"
-weights_location_list = [path+"LSTM_model_0_24_38_0.99467.h5",
-                         path+"LSTM_model_1_24_25_0.99451.h5",
-                         path+"LSTM_model_2_24_39_0.99426.h5",
-                         path+"LSTM_model_3_24_29_0.99481.h5",
-                         path+"LSTM_model_4_24_36_0.99486.h5"]
+weights_location_list = [path+"LSTM_model_0_0_24_32_0.99523.h5",
+                         path+"LSTM_model_0_0_24_32_0.99523.h5",
+                         path+"LSTM_model_0_0_24_32_0.99523.h5",
+                         path+"LSTM_model_0_0_24_32_0.99523.h5",
+                         path+"LSTM_model_0_0_24_32_0.99523.h5"]
 
 CV = Pipeline(DL_model, start_fold)
 pred_train, pred_test = CV.validation(weights_location_list)
