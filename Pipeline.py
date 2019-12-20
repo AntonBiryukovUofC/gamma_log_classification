@@ -109,7 +109,7 @@ class Pipeline():
                 monitor='val_accuracy',
                 mode='max', verbose=1, save_best_only=True)
 
-            self.model = self.model_func(input_size=(self.GetData.X_train.shape[1], self.GetData.X_train.shape[2]),
+            self.model = self.model_func(input_size=(X_train.shape[1], X_train.shape[2]),
                                          hyperparams=HYPERPARAM)
 
             self.model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
