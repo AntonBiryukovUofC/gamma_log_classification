@@ -2,6 +2,7 @@
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from sklearn.model_selection import KFold
 
+from Pipeline import build_encoder, encode
 from config import *
 from DataGenerator import *
 import pickle
@@ -76,12 +77,17 @@ class Pipeline():
             weights_loc = weights_location_list[fold]
 
             X_train, y_train, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
+            encoder = build_encoder(X_train)
+            X_val = encode(X_val, encoder)
+            X_train = encode(X_train, encoder)
+            X_test = encode(self.GetData.X_test, encoder)
+
             # self.model = self.model_func(input_size=INPUT_SIZE, hyperparams=HYPERPARAM)
             self.model = load_model(weights_loc)
 
             pred_val = self.model.predict(X_val)
             predictions_train[val_ind] += y_val.copy()
-            predictions_test += self.model.predict(self.GetData.X_test) / 5
+            predictions_test += self.model.predict(X_test) / 5
 
         predictions_test = predictions_test[:, :1100:, :]
         predictions_train = predictions_train[:, :1100:, :]
