@@ -9,7 +9,7 @@ from DataGenerator import *
 
 def build_encoder(X_train):
     all_vals = pd.Series(X_train[:, :, 1].flatten())
-    ce = dict(all_vals.value_counts()/(X_train.shape[0] * X_train.shape[1]))
+    ce = dict(all_vals.value_counts() / (X_train.shape[0] * X_train.shape[1]))
     return ce
 
 
@@ -20,7 +20,14 @@ def encode(X, encoder):
 
     f = np.vectorize(func)
     freq_encoded = f(X[:, :, 1])
-    X = np.concatenate((X, freq_encoded), axis=2)
+    # rescale it:
+    freq_values_unique = list(encoder.values())
+    freq_encoded = (freq_encoded - np.min(freq_values_unique)) / (
+            np.max(freq_values_unique) - np.min(freq_values_unique)) - 0.5
+    freq_encoded = np.reshape(freq_encoded, (freq_encoded.shape[0], freq_encoded.shape[1], 1))
+    freq_encoded_diff = np.pad(np.diff(freq_encoded, axis=1), pad_width=((0, 0), (1, 0), (0, 0)))
+    X = np.concatenate((X, freq_encoded, freq_encoded_diff), axis=2)
+
     return X
 
 
@@ -91,10 +98,10 @@ class Pipeline():
 
             X_train, y_train, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
             # Add encoding:
-  #          encoder = build_encoder(X_train)
- #           X_val = encode(X_val, encoder)
-#            X_train = encode(X_train, encoder)
-
+            encoder = build_encoder(X_train)
+            X_val = encode(X_val, encoder)
+            X_train = encode(X_train, encoder)
+            X_test = encode(self.GetData.X_test,encoder)
             checkpointer = ModelCheckpoint(
                 f'{self.model_name}_{fold}_{self.gpu}_{self.batch_size}' + '_{epoch:2d}_{val_accuracy:.5f}.h5',
                 monitor='val_accuracy',
@@ -115,7 +122,7 @@ class Pipeline():
             pred_val_processed = predictions_postprocess(pred_val[val_ind, :, :])
             y_val = predictions_postprocess(y_val)
 
-            predictions += self.model.predict(self.GetData.X_test) / self.n_fold
+            predictions += self.model.predict(X_test) / self.n_fold
 
             np.save(self.debug_folder + str(fold) + '_', pred_val)
 
