@@ -73,6 +73,11 @@ class Pipeline():
                 continue
 
             X_train, y_train, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
+            # Add encoding:
+
+
+
+
 
             checkpointer = ModelCheckpoint(f'{self.model_name}_{fold}_{self.gpu}_{self.batch_size}'+'_{epoch:2d}_{val_accuracy:.5f}.h5',
                                            monitor='val_accuracy',
