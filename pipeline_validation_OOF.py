@@ -86,7 +86,7 @@ class Pipeline():
             self.model = load_model(weights_loc)
 
             pred_val = self.model.predict(X_val)
-            predictions_train[val_ind] += y_val.copy()
+            predictions_train[val_ind] += pred_val.copy()
             predictions_test += self.model.predict(X_test) / 5
 
         predictions_test = predictions_test[:, :1100:, :]
