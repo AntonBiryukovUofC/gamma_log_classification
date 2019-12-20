@@ -164,7 +164,7 @@ class DataGenerator:
             GR_temp = GR[i * 1100:(i + 1) * 1100]
             GR_leak = GR_temp * 100
             GR_leak = GR_leak - np.floor(GR_leak)
-            GR_leak = np.round(GR_leak, 15)
+            GR_leak = np.round(GR_leak, 11)
 
             if add_trend:
                 GR_temp = add_linear_drift_shift(GR_temp, slope[i], labels=temp, h=35, l=-35)

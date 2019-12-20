@@ -78,11 +78,11 @@ class Pipeline():
                                           min_delta=min_delta)
 
         self.reduce_lr = ReduceLROnPlateau(monitor='val_accuracy', factor=0.3,
-                                           patience=int(patience / 6), min_lr=self.lr / 1000, verbose=1, mode='max', )
+                                           patience=int(patience / 5), min_lr=self.lr / 1000, verbose=1, mode='max', )
 
     def train(self, optimizer=None):
         if optimizer is None:
-            optimizer = Adam(self.lr)
+            optimizer = Adam(self.lr, clipnorm=1.0, clipvalue=0.5)
 
         # kfold cross-validation
         kf = KFold(self.n_fold, shuffle=True, random_state=42)
@@ -105,7 +105,7 @@ class Pipeline():
             X_test = encode(self.GetData.X_test,encoder)
             print('Done encoding!')
             checkpointer = ModelCheckpoint(
-                f'{self.model_name}_{fold}_{self.gpu}_{self.batch_size}' + '_{epoch:2d}_{val_accuracy:.5f}.h5',
+                f'{self.model_name}_{fold}_{self.gpu}_{self.batch_size}' + '_{epoch:02d}_{val_accuracy:.5f}.h5',
                 monitor='val_accuracy',
                 mode='max', verbose=1, save_best_only=True)
 
