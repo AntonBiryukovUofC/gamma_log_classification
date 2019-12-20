@@ -98,10 +98,12 @@ class Pipeline():
 
             X_train, y_train, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
             # Add encoding:
+            print('Encoding...')
             encoder = build_encoder(X_train)
             X_val = encode(X_val, encoder)
             X_train = encode(X_train, encoder)
             X_test = encode(self.GetData.X_test,encoder)
+            print('Done encoding!')
             checkpointer = ModelCheckpoint(
                 f'{self.model_name}_{fold}_{self.gpu}_{self.batch_size}' + '_{epoch:2d}_{val_accuracy:.5f}.h5',
                 monitor='val_accuracy',
