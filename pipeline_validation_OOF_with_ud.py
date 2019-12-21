@@ -103,7 +103,7 @@ add_trend = False
 freq_enc = True
 use_diffs_leaky = False
 
-weights_location_list = {'regular': [path + "LSTM_model_0_0_24_26_0.99466.h5",
+weights_location_dict = {'regular': [path + "LSTM_model_0_0_24_26_0.99466.h5",
                                      path + "LSTM_model_0_0_24_26_0.99466.h5",
                                      path + "LSTM_model_0_0_24_26_0.99466.h5",
                                      path + "LSTM_model_0_0_24_26_0.99466.h5",
@@ -120,8 +120,8 @@ GetData_regular = DataGenerator(add_trend=add_trend, use_diffs_leaky=use_diffs_l
 CV = Pipeline(DL_model, start_fold, GetData=GetData_regular)
 CV_ud = Pipeline(DL_model, start_fold, GetData=GetData_ud)
 
-pred_train, pred_test = CV.validation(weights_location_list, freq_encoder=freq_enc)
-pred_train_ud, pred_test_ud = CV_ud.validation(weights_location_list, freq_encoder=freq_enc)
+pred_train, pred_test = CV.validation(weights_location_dict['regular'], freq_encoder=freq_enc)
+pred_train_ud, pred_test_ud = CV_ud.validation(weights_location_dict['ud'], freq_encoder=freq_enc)
 
 pred_test = pred_test + pred_test_ud
 
