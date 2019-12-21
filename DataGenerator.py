@@ -65,11 +65,11 @@ class DataGenerator:
                  dataset_mode='normal',
                  add_trend=False,
                  orders=None,
-                 use_diffs_leaky=True
+                 use_diffs_leaky=False
                  ):
 
         if orders is None:
-            orders = [2, 3, 4, 5]
+            orders = [2,3,4,5]
         self.add_trend = add_trend
         self.input_size = input_size
         self.target = target
