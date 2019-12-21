@@ -64,7 +64,8 @@ class DataGenerator:
                  target=TARGET,
                  dataset_mode='normal',
                  add_trend=False,
-                 orders=None
+                 orders=None,
+                 use_diffs_leaky=True
                  ):
 
         if orders is None:
@@ -89,7 +90,9 @@ class DataGenerator:
         diff_sig1 = np.zeros((diff_sig.shape[0], diff_sig.shape[1] + 1, diff_sig.shape[2]))
         diff_sig1[:, :-1, :] = diff_sig
         self.X_train = np.concatenate((self.X_train, diff_sig1), axis=2)
-        self.X_train = add_diff_leaky_feature(self.X_train, orders=orders)
+        if use_diffs_leaky:
+            print('Applying diffs for leaky features in Train')
+            self.X_train = add_diff_leaky_feature(self.X_train, orders=orders)
 
         # apply subband decomposition
         shape_test = (self.X_test.shape[0], self.X_test.shape[1], 1)
@@ -100,7 +103,9 @@ class DataGenerator:
         diff_sig1 = np.zeros((diff_sig.shape[0], diff_sig.shape[1] + 1, diff_sig.shape[2]))
         diff_sig1[:, :-1, :] = diff_sig
         self.X_test = np.concatenate((self.X_test, diff_sig1), axis=2)
-        self.X_test = add_diff_leaky_feature(self.X_test, orders=orders)
+        if use_diffs_leaky:
+            print('Applying diffs for leaky features in Test')
+            self.X_test = add_diff_leaky_feature(self.X_test, orders=orders)
 
         del SBD_arr, diff_sig1
         gc.collect()
