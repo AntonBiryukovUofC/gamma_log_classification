@@ -124,6 +124,7 @@ pred_train, pred_test = CV.validation(weights_location_dict['regular'], freq_enc
 pred_train_ud, pred_test_ud = CV_ud.validation(weights_location_dict['ud'], freq_encoder=freq_enc)
 
 pred_test = pred_test + pred_test_ud
+pred_train+=pred_train_ud
 
 test = pd.read_csv('./data/raw/test_cax.csv')
 submit = prepare_df(pred_test, test)
