@@ -7,7 +7,7 @@ from config import *
 from DataGenerator import *
 import pickle
 
-BATCH_SIZE=48
+BATCH_SIZE = 48
 
 def prepare_df(pred, df, col="label"):
     wells = df['well_id'].sort_values().unique().tolist()
@@ -65,7 +65,7 @@ class Pipeline():
 
     def validation(self, weights_location_list):
         print('Validation started')
-        assert len(weights_location_list) == 5
+        assert len(weights_location_list) == 10
         # kfold cross-validation
         kf = KFold(self.n_fold, shuffle=True, random_state=42)
 
@@ -74,20 +74,20 @@ class Pipeline():
 
         for fold, (train_ind, val_ind) in enumerate(kf.split(self.GetData.X_train)):
             print(f'Doing fold {fold}')
-            weights_loc = weights_location_list[fold]
 
             X_train, y_train, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
             encoder = build_encoder(X_train)
             X_val = encode(X_val, encoder)
             X_train = encode(X_train, encoder)
             X_test = encode(self.GetData.X_test, encoder)
+            
+            for j in range(2):
+                weights_loc = weights_location_list[2*fold + j]
+                self.model = load_model(weights_loc)
 
-            # self.model = self.model_func(input_size=INPUT_SIZE, hyperparams=HYPERPARAM)
-            self.model = load_model(weights_loc)
-
-            pred_val = self.model.predict(X_val)
-            predictions_train[val_ind] += pred_val.copy()
-            predictions_test += self.model.predict(X_test) / 5
+                pred_val = self.model.predict(X_val)
+                predictions_train[val_ind] += pred_val.copy() / 2
+                predictions_test += self.model.predict(X_test) / 10
 
         predictions_test = predictions_test[:, :1100:, :]
         predictions_train = predictions_train[:, :1100:, :]
@@ -97,11 +97,18 @@ class Pipeline():
 
 start_fold = 0
 path = "./data/weights/"
-weights_location_list = [path+"LSTM_model_0_24_23_0.99538.h5",
-                         path+"LSTM_model_1_24_23_0.99553.h5",
-                         path+"LSTM_model_2_24_26_0.99501.h5",
-                         path+"LSTM_model_3_24_19_0.99498.h5",
-                         path+"LSTM_model_4_24_31_0.99513.h5"]
+weights_location_list = [
+                         path + "LSTM_model_0_12_21_0.99541.h5",
+                         path + "LSTM_model_0_16_27_0.99550.h5",
+                         path + "LSTM_model_1_12_17_0.99587.h5",
+                         path + "LSTM_model_1_16_17_0.99562.h5",
+                         path + "LSTM_model_2_16_27_0.99525.h5",
+                         path + "LSTM_model_2_12_24_0.99536.h5",
+                         path + "LSTM_model_3_12_15_0.99520.h5",
+                         path + "LSTM_model_3_16_21_0.99517.h5",
+                         path + "LSTM_model_4_12_19_0.99547.h5",
+                         path + "LSTM_model_4_24_25_0.99528.h5"
+                        ]
 
 CV = Pipeline(DL_model, start_fold)
 pred_train, pred_test = CV.validation(weights_location_list)
