@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 
 def rescale_one_row(s):
-    new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s.reshape(-1,1))
+    new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s.reshape(-1, 1))
 
     return new_row
 
@@ -38,6 +38,21 @@ def add_linear_drift_shift(x, slope, labels=None, h=0.25, l=-0.25):
     return y
 
 
+def add_diff_leaky_feature(X, orders):
+    print('adding leaky features !')
+    X_leak = np.reshape(X[:, :, 1], (X.shape[0], X.shape[1], 1))
+    diffs = []
+    for ord in orders:
+        tmp = X_leak.copy()
+        for i in range(ord):
+            tmp = np.diff(tmp, axis=1)
+        tmp = np.pad(tmp, pad_width=((0, 0), (ord, 0), (0, 0)))
+        diffs.append(tmp)
+    diffs_array = np.concatenate(diffs, axis=2)
+    res = np.concatenate((X, diffs_array), axis=2)
+    return res
+
+
 class DataGenerator:
 
     def __init__(self,
@@ -47,7 +62,8 @@ class DataGenerator:
                  input_size=INPUT_SIZE,
                  target=TARGET,
                  dataset_mode='normal',
-                 add_trend=False
+                 add_trend=False,
+                 n_diffs_leak=3
                  ):
 
         self.add_trend = add_trend
@@ -62,24 +78,26 @@ class DataGenerator:
         # self.X_test, dummy = self.squeeze_stretch(self.X_test, self.y_train[self.X_test.shape[0],:,:])
 
         # apply subband decomposition
-        shape_train = (self.X_train.shape[0],self.X_train.shape[1],1)
-        SBD_arr = SBD(self.X_train[:,:,0].reshape(shape_train))
+        shape_train = (self.X_train.shape[0], self.X_train.shape[1], 1)
+        SBD_arr = SBD(self.X_train[:, :, 0].reshape(shape_train))
         self.X_train = np.concatenate((self.X_train, SBD_arr), axis=2)
 
         diff_sig = np.diff(self.X_train, axis=1)
         diff_sig1 = np.zeros((diff_sig.shape[0], diff_sig.shape[1] + 1, diff_sig.shape[2]))
         diff_sig1[:, :-1, :] = diff_sig
         self.X_train = np.concatenate((self.X_train, diff_sig1), axis=2)
+        self.X_train = add_diff_leaky_feature(self.X_train, orders=[2, 3, 4])
 
         # apply subband decomposition
         shape_test = (self.X_test.shape[0], self.X_test.shape[1], 1)
-        SBD_arr = SBD(self.X_test[:,:,0].reshape(shape_test))
+        SBD_arr = SBD(self.X_test[:, :, 0].reshape(shape_test))
         self.X_test = np.concatenate((self.X_test, SBD_arr), axis=2)
 
         diff_sig = np.diff(self.X_test, axis=1)
         diff_sig1 = np.zeros((diff_sig.shape[0], diff_sig.shape[1] + 1, diff_sig.shape[2]))
         diff_sig1[:, :-1, :] = diff_sig
         self.X_test = np.concatenate((self.X_test, diff_sig1), axis=2)
+        self.X_test = add_diff_leaky_feature(self.X_test, orders=[2, 3, 4])
 
         del SBD_arr, diff_sig1
         gc.collect()
@@ -116,7 +134,6 @@ class DataGenerator:
         # get validation samples
         X_val = self.X_train[val_ind, :, :]
         y_val = self.y_train[val_ind, :, :]
-
 
         return X_train, y_train, X_val, y_val
 
