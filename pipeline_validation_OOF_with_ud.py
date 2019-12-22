@@ -83,7 +83,8 @@ class Pipeline():
                 X_val = encode(X_val, encoder)
                 # X_train = encode(X_train, encoder)
                 X_test = encode(self.GetData.X_test, encoder)
-
+            else:
+                X_test = self.GetData.X_test
             # self.model = self.model_func(input_size=INPUT_SIZE, hyperparams=HYPERPARAM)
             self.model = load_model(weights_loc)
 
