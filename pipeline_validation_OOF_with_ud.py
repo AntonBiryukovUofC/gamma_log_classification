@@ -66,7 +66,7 @@ class Pipeline():
 
     def validation(self, weights_location_list, freq_encoder=True):
         print('Validation started')
-        assert len(weights_location_list) == 5
+        assert len(weights_location_list) == 15
         # kfold cross-validation
         kf = KFold(self.n_fold, shuffle=True, random_state=42)
 
@@ -75,7 +75,6 @@ class Pipeline():
 
         for fold, (train_ind, val_ind) in enumerate(kf.split(self.GetData.X_train)):
             print(f'Doing fold {fold}')
-            weights_loc = weights_location_list[fold]
 
             X_train, y_train, X_val, y_val = self.GetData.get_train_val(train_ind, val_ind)
             if freq_encoder:
@@ -85,12 +84,15 @@ class Pipeline():
                 X_test = encode(self.GetData.X_test, encoder)
             else:
                 X_test = self.GetData.X_test
-            # self.model = self.model_func(input_size=INPUT_SIZE, hyperparams=HYPERPARAM)
-            self.model = load_model(weights_loc)
+            
+            k = 3
+            for j in range(k):
+                weights_loc = weights_location_list[k*fold + j]
+                self.model = load_model(weights_loc)
 
-            pred_val = self.model.predict(X_val)
-            predictions_train[val_ind] += pred_val.copy()
-            predictions_test += self.model.predict(X_test) / 5
+                pred_val = self.model.predict(X_val)
+                predictions_train[val_ind] += pred_val.copy() / k
+                predictions_test += self.model.predict(X_test) / (5*k)
 
         predictions_test = predictions_test[:, :1100:, :]
         predictions_train = predictions_train[:, :1100:, :]
@@ -104,16 +106,46 @@ add_trend = False
 freq_enc = True
 use_diffs_leaky = False
 
-weights_location_dict = {'regular': [path + "LSTM_model_0_0_24_26_0.99466.h5",
-                                     path + "LSTM_model_0_0_24_26_0.99466.h5",
-                                     path + "LSTM_model_0_0_24_26_0.99466.h5",
-                                     path + "LSTM_model_0_0_24_26_0.99466.h5",
-                                     path + "LSTM_model_0_0_24_26_0.99466.h5"],
-                         'ud': [path + "LSTM_model_ud_0_0_64_34_0.99426.h5",
-                                path + "LSTM_model_ud_1_0_12_14_0.99564.h5",
-                                path + "LSTM_model_ud_1_0_12_14_0.99564.h5",
-                                path + "LSTM_model_ud_1_0_12_14_0.99564.h5",
-                                path + "LSTM_model_ud_1_0_12_14_0.99564.h5"]}
+weights_location_dict = {'regular': [path + "LSTM_model_0_08_17_0.99564.h5",
+                                     path + "LSTM_model_0_12_21_0.99541.h5",
+                                     path + "LSTM_model_0_16_27_0.99550.h5",
+                                     
+                                     path + "LSTM_model_1_12_17_0.99587.h5",
+                                     path + "LSTM_model_1_02_28_0.99583.h5",
+                                     path + "LSTM_model_1_16_17_0.99562.h5",
+                                   
+                                     path + "LSTM_model_2_02_16_0.99537.h5",
+                                     path + "LSTM_model_2_12_24_0.99536.h5",
+                                     path + "LSTM_model_2_16_27_0.99525.h5",
+                                     
+                                     path + "LSTM_model_3_02_29_0.99527.h5",
+                                     path + "LSTM_model_3_12_15_0.99520.h5",
+                                     path + "LSTM_model_3_16_21_0.99517.h5",
+                                     
+                                     path + "LSTM_model_4_08_14_0.99543.h5",
+                                     path + "LSTM_model_4_02_18_0.99563.h5",
+                                     path + "LSTM_model_4_12_19_0.99547.h5",
+                                    ],
+                         'ud': [path + "LSTM_model_ud_0_8_18_0.99574.h5",
+                                path + "LSTM_model_ud_0_2_21_0.99571.h5",
+                                path + "LSTM_model_ud_0_4_16_0.99574.h5",
+
+                                path + "LSTM_model_ud_1_4_23_0.99585.h5",
+                                path + "LSTM_model_ud_1_2_17_0.99570.h5",
+                                path + "LSTM_model_ud_1_8_19_0.99575.h5",
+
+                                path + "LSTM_model_ud_2_8_25_0.99558.h5",
+                                path + "LSTM_model_ud_2_4_26_0.99550.h5",
+                                path + "LSTM_model_ud_2_2_18_0.99518.h5",
+
+                                path + "LSTM_model_ud_3_8_25_0.99553.h5",
+                                path + "LSTM_model_ud_3_2_16_0.99543.h5",
+                                path + "LSTM_model_ud_3_4_30_0.99528.h5",
+
+                                path + "LSTM_model_ud_4_4_22_0.99578.h5",
+                                path + "LSTM_model_ud_4_8_23_0.99544.h5",
+                                path + "LSTM_model_ud_4_2_20_0.99543.h5",
+                               ]}
 
 GetData_ud = DataGenerator(add_trend=add_trend, use_diffs_leaky=use_diffs_leaky, dataset_mode='ud')
 GetData_regular = DataGenerator(add_trend=add_trend, use_diffs_leaky=use_diffs_leaky, dataset_mode='regular')
@@ -124,8 +156,8 @@ CV_ud = Pipeline(DL_model, start_fold, GetData=GetData_ud)
 pred_train, pred_test = CV.validation(weights_location_dict['regular'], freq_encoder=freq_enc)
 pred_train_ud, pred_test_ud = CV_ud.validation(weights_location_dict['ud'], freq_encoder=freq_enc)
 
-pred_test = pred_test + pred_test_ud
-pred_train+=pred_train_ud
+pred_test += pred_test_ud
+pred_train += pred_train_ud
 
 test = pd.read_csv('./data/raw/test_cax.csv')
 submit = prepare_df(pred_test, test)
