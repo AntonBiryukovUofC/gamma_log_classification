@@ -1,4 +1,7 @@
+import gc
+
 from config import *
+import pandas as pd
 
 def SBD(X):
 

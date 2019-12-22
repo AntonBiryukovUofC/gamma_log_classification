@@ -86,5 +86,9 @@ target/
 *.swo
 
 # Mypy cache
+<<<<<<< HEAD
 .mypy_cache/
 /data
+=======
+.mypy_cache/
+>>>>>>> f70c5b96043a332bbd459d2a6709269ced0a22ff
