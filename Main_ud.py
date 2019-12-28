@@ -16,8 +16,7 @@ from config import *
 @click.option('--batch', default=64, help='batch size')
 @click.option('--add_trend', help='add trend to xstarter ?',is_flag=True)
 @click.option('--freq_enc', help='use freq encoder?',is_flag=True)
-@click.option('--use_diffs_leaky', help='calculate diffs for the leaky feature?',is_flag=True)
-def main(start_fold,gpu,batch,add_trend,freq_enc,use_diffs_leaky):
+def main(start_fold,gpu,batch,add_trend,freq_enc):
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
 
@@ -27,7 +26,7 @@ def main(start_fold,gpu,batch,add_trend,freq_enc,use_diffs_leaky):
     set_session(sess)  # set this TensorFlow session as the default session for Keras
     if add_trend:
         log.info('Will add trend to XEEK Train data')
-    GetData = DataGenerator(add_trend=add_trend,use_diffs_leaky=use_diffs_leaky,dataset_mode='ud')
+    GetData = DataGenerator(add_trend=add_trend,dataset_mode='ud')
     CV = Pipeline(GetData, DL_model, start_fold, gpu, batch,model_name=MODEL_PATH + 'LSTM_model_ud')
     score = CV.train(freq_encoder=freq_enc)
     log.info(f'Model accuracy = {score}')

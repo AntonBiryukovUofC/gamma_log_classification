@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 
 def rescale_one_row(s):
-    new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s.reshape(-1, 1))
+    new_row = MinMaxScaler(feature_range=(-0.5, 0.5)).fit_transform(s)
 
     return new_row
 
@@ -22,36 +22,22 @@ def to_ohe(x, n_values=5):
     return y
 
 
-def add_linear_drift_shift(x, slope, labels=None, h=0.25, l=-0.25):
+
+def add_linear_drift_shift(x, slope,labels=None,h=0.25,l=-0.25):
     delta = np.arange(x.shape[0]) * slope
-    y = x + delta
+    y=x + delta
     if labels is not None:
         y_series = pd.Series(labels)
         groups = (y_series != y_series.shift(1)).cumsum().fillna('pad')
-        groups.index = y_series.index
-        groups[y_series == 0] = -20
+        groups.index=y_series.index
+        groups[y_series==0] = -20
         rand_grp_shift = np.random.uniform(l, h, groups.unique().shape[0])
         map_grp = dict(zip(groups.unique(), rand_grp_shift))
         shifts = np.array([map_grp[x] for x in groups])
-        y = y + shifts
+        y = y+shifts
 
     return y
 
-
-def add_diff_leaky_feature(X, orders):
-    print('adding leaky features !')
-    X_leak = np.reshape(X[:, :, 1], (X.shape[0], X.shape[1], 1))
-    diffs = []
-    for ord in orders:
-        print(f'Processing {ord} diff of leaky feature')
-        tmp = X_leak.copy()
-        for i in range(ord):
-            tmp = np.diff(tmp, axis=1)
-        tmp = np.pad(tmp, pad_width=((0, 0), (ord, 0), (0, 0)))
-        diffs.append(tmp)
-    diffs_array = np.concatenate(diffs, axis=2)
-    res = np.concatenate((X, diffs_array), axis=2)
-    return res
 
 
 class DataGenerator:
@@ -63,49 +49,47 @@ class DataGenerator:
                  input_size=INPUT_SIZE,
                  target=TARGET,
                  dataset_mode='normal',
-                 add_trend=False,
-                 orders=None,
-                 use_diffs_leaky=False
+                 add_trend=False
                  ):
 
-        if orders is None:
-            orders = [2,3,4,5]
         self.add_trend = add_trend
         self.input_size = input_size
         self.target = target
         self.dataset_mode = dataset_mode
-        self.X_train, self.y_train, self.X_test = self.load_data(data_path, test_name,
-                                                                 train_name)
+        self.X_train, self.y_train, self.X_test, self.df_train_xstart, self.y_train_xstart = self.load_data(data_path,
+                                                                                                            test_name,
+                                                                                                            train_name)
 
         # self.X_train,self.y_train = self.squeeze_stretch(self.X_train,self.y_train)
 
         # self.X_test, dummy = self.squeeze_stretch(self.X_test, self.y_train[self.X_test.shape[0],:,:])
 
         # apply subband decomposition
-        shape_train = (self.X_train.shape[0], self.X_train.shape[1], 1)
-        SBD_arr = SBD(self.X_train[:, :, 0].reshape(shape_train))
+        SBD_arr = SBD(self.X_train)
         self.X_train = np.concatenate((self.X_train, SBD_arr), axis=2)
 
         diff_sig = np.diff(self.X_train, axis=1)
         diff_sig1 = np.zeros((diff_sig.shape[0], diff_sig.shape[1] + 1, diff_sig.shape[2]))
         diff_sig1[:, :-1, :] = diff_sig
         self.X_train = np.concatenate((self.X_train, diff_sig1), axis=2)
-        if use_diffs_leaky:
-            print('Applying diffs for leaky features in Train')
-            self.X_train = add_diff_leaky_feature(self.X_train, orders=orders)
 
         # apply subband decomposition
-        shape_test = (self.X_test.shape[0], self.X_test.shape[1], 1)
-        SBD_arr = SBD(self.X_test[:, :, 0].reshape(shape_test))
+        SBD_arr = SBD(self.X_test)
         self.X_test = np.concatenate((self.X_test, SBD_arr), axis=2)
 
         diff_sig = np.diff(self.X_test, axis=1)
         diff_sig1 = np.zeros((diff_sig.shape[0], diff_sig.shape[1] + 1, diff_sig.shape[2]))
         diff_sig1[:, :-1, :] = diff_sig
         self.X_test = np.concatenate((self.X_test, diff_sig1), axis=2)
-        if use_diffs_leaky:
-            print('Applying diffs for leaky features in Test')
-            self.X_test = add_diff_leaky_feature(self.X_test, orders=orders)
+
+        # apply subband decomposition
+        SBD_arr = SBD(self.df_train_xstart)
+        self.df_train_xstart = np.concatenate((self.df_train_xstart, SBD_arr), axis=2)
+
+        diff_sig = np.diff(self.df_train_xstart, axis=1)
+        diff_sig1 = np.zeros((diff_sig.shape[0], diff_sig.shape[1] + 1, diff_sig.shape[2]))
+        diff_sig1[:, :-1, :] = diff_sig
+        self.df_train_xstart = np.concatenate((self.df_train_xstart, diff_sig1), axis=2)
 
         del SBD_arr, diff_sig1
         gc.collect()
@@ -116,15 +100,23 @@ class DataGenerator:
         df_test = pd.read_csv(data_path + test_name, index_col=None, header=0)
         self.df_test = df_test
 
+        df_train_xstart = pd.read_csv(data_path + 'train.csv', index_col=None, header=0)
+        df_train_xstart['well_id'] += 4000
+
         df_test['label'] = np.nan
 
         df_train = pd.read_csv(data_path + train_name, index_col=None, header=0)
 
         df_train, y_train = self.preprocessing_initial(df_train.drop('row_id', axis=1), note='Train')
-        df_test, y_test = self.preprocessing_initial(df_test.drop('row_id', axis=1), note='Test')
-        return df_train, y_train, df_test
 
-    # return df_train, y_train, df_test, df_train_xstart, y_train_xstart
+
+        df_train_xstart, y_train_xstart = self.preprocessing_initial(df_train_xstart.drop('row_id', axis=1),
+                                                                     note='Train_xstart',add_trend=self.add_trend)
+        df_train_xstart = self.augment_xstarter_data(df_train_xstart)
+
+        df_test, y_test = self.preprocessing_initial(df_test.drop('row_id', axis=1), note='Test')
+
+        return df_train, y_train, df_test, df_train_xstart, y_train_xstart
 
     def augment_xstarter_data(self, X):
 
@@ -143,11 +135,14 @@ class DataGenerator:
         X_val = self.X_train[val_ind, :, :]
         y_val = self.y_train[val_ind, :, :]
 
+        X_train = np.concatenate((X_train, self.df_train_xstart), axis=0)
+        y_train = np.concatenate((y_train, self.y_train_xstart), axis=0)
+
         return X_train, y_train, X_val, y_val
 
     def rescale_X_to_maxmin(self, X, note='note'):
         print(f'Performing a rescale on {note}..')
-        list_wells = [X[i, :, 0] for i in range(X.shape[0])]
+        list_wells = [X[i, :] for i in range(X.shape[0])]
         X_new = X.copy()
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
@@ -158,7 +153,7 @@ class DataGenerator:
 
         return X_new
 
-    def preprocessing_initial(self, df, note='MinMax', add_trend=False):
+    def preprocessing_initial(self, df, note='MinMax',add_trend=False):
 
         train_wells = df['well_id'].unique().tolist()
 
@@ -166,7 +161,7 @@ class DataGenerator:
         X = np.zeros((
             len(train_wells),
             1104,
-            2
+            1
         ))
 
         # labels
@@ -179,7 +174,7 @@ class DataGenerator:
         GR = df['GR'].values
         label = df['label'].values
         np.random.seed(42)
-        slope = np.random.uniform(low=5e-3, high=5e-2, size=len(train_wells))
+        slope = np.random.uniform(low=5e-3,high=5e-2,size=len(train_wells))
         if add_trend:
             print(f'Adding trends to {note}')
         for i in range(len(train_wells)):
@@ -187,20 +182,12 @@ class DataGenerator:
             temp = label[i * 1100:(i + 1) * 1100]
 
             GR_temp = GR[i * 1100:(i + 1) * 1100]
-            GR_leak = GR_temp * 100
-            GR_leak = GR_leak - np.floor(GR_leak)
-            GR_leak = np.round(GR_leak, 11)
-
             if add_trend:
-                GR_temp = add_linear_drift_shift(GR_temp, slope[i], labels=temp, h=35, l=-35)
+                GR_temp = add_linear_drift_shift(GR_temp, slope[i], labels=temp,h=35,l=-35)
             GR_temp = np.reshape(GR_temp, [GR_temp.shape[0], 1])
-            GR_leak = np.reshape(GR_leak, [GR_leak.shape[0], 1])
 
             X[i, :1100, 0] = GR_temp[:, 0]
-            X[i, :1100, 1] = GR_leak[:, 0]
-
             X[i, 1100:, 0] = X[i, 1096:1100, 0]
-            X[i, 1100:, 1] = X[i, 1096:1100, 1]
 
             for j in range(1100):
                 if temp[j] == 0:
