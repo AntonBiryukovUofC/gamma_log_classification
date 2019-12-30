@@ -81,7 +81,7 @@ class Pipeline():
                                            patience=int(patience / 5),
                                            min_lr=self.lr / 1000, verbose=1, mode='max')
 
-    def train(self, optimizer=None, freq_encoder=True):
+    def train(self, optimizer=None, freq_encoder=False):
         if optimizer is None:
             optimizer = Adam(self.lr, clipnorm=1.0, clipvalue=0.5)
 
@@ -106,6 +106,8 @@ class Pipeline():
                 X_train = encode(X_train, encoder)
                 X_test = encode(self.GetData.X_test, encoder)
                 print('Done encoding!')
+            else:
+                X_test = self.GetData.X_test
             checkpointer = ModelCheckpoint(
                 f'{self.model_name}_{fold}_{self.gpu}_{self.batch_size}' + '_{epoch:02d}_{val_accuracy:.5f}.h5',
                 monitor='val_accuracy',
