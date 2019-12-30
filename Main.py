@@ -27,7 +27,7 @@ def main(start_fold,gpu,batch,add_trend,freq_enc,use_diffs_leaky):
     set_session(sess)  # set this TensorFlow session as the default session for Keras
     if add_trend:
         log.info('Will add trend to XEEK Train data')
-    GetData = DataGenerator(add_trend=add_trend,use_diffs_leaky=use_diffs_leaky)
+    GetData = DataGenerator(add_trend=add_trend)
     CV = Pipeline(GetData, DL_model, start_fold, gpu, batch)
     score = CV.train(freq_encoder=freq_enc)
     log.info(f'Model accuracy = {score}')

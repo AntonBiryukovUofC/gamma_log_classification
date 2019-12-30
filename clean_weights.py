@@ -6,5 +6,5 @@ weights = [path + f for f in sorted(listdir(path))]
 
 for weight in weights:
 	score = int(weight.split(".")[-2])
-	if score < 99500:
+	if score < 97500:
 		remove(weight)
