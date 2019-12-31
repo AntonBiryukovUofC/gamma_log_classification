@@ -19,11 +19,11 @@ def DL_model(input_size, hyperparams):
     bd3 = Bidirectional(CuDNNLSTM(256, return_sequences=True))(a2)
     a3 = Activation('elu')(bd3)
 
-    # output = TimeDistributed(Dense(5, activation='softmax'))(a3)
+    output = TimeDistributed(Dense(5, activation='softmax'))(a3)
 
-    output = Conv1D(64, 5, activation='elu', padding='same')(a3)
-    output = Dropout(dropout)(output)
-    output = Conv1D(5, 1, activation='softmax', padding='same')(output)
+    # output = Conv1D(64, 5, activation='elu', padding='same')(a3)
+    # output = Dropout(dropout)(output)
+    # output = Conv1D(5, 1, activation='softmax', padding='same')(output)
 
     model = Model(inputs=[input], outputs=[output])
     print(model.summary())
