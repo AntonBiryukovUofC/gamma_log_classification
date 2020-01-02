@@ -64,9 +64,9 @@ class Pipeline():
         self.reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1,
                                            patience=int(patience / 3), min_lr=self.lr / 1000, verbose=1)
 
-    def validation(self, weights_location_list, freq_encoder=True):
+    def validation(self, weights_location_list, freq_encoder=False):
         print('Validation started')
-        assert len(weights_location_list) == 15
+        assert len(weights_location_list) == 5
         # kfold cross-validation
         kf = KFold(self.n_fold, shuffle=True, random_state=42)
 
@@ -85,7 +85,7 @@ class Pipeline():
             else:
                 X_test = self.GetData.X_test
             
-            k = 3
+            k = 1
             for j in range(k):
                 weights_loc = weights_location_list[k*fold + j]
                 self.model = load_model(weights_loc)
@@ -103,52 +103,25 @@ class Pipeline():
 start_fold = 0
 path = "./data/weights/"
 add_trend = False
-freq_enc = True
+freq_enc = False
 use_diffs_leaky = False
 
-weights_location_dict = {'regular': [path + "LSTM_model_0_08_17_0.99564.h5",
-                                     path + "LSTM_model_0_12_21_0.99541.h5",
-                                     path + "LSTM_model_0_16_27_0.99550.h5",
-                                     
-                                     path + "LSTM_model_1_12_17_0.99587.h5",
-                                     path + "LSTM_model_1_02_28_0.99583.h5",
-                                     path + "LSTM_model_1_16_17_0.99562.h5",
-                                   
-                                     path + "LSTM_model_2_02_16_0.99537.h5",
-                                     path + "LSTM_model_2_12_24_0.99536.h5",
-                                     path + "LSTM_model_2_16_27_0.99525.h5",
-                                     
-                                     path + "LSTM_model_3_02_29_0.99527.h5",
-                                     path + "LSTM_model_3_12_15_0.99520.h5",
-                                     path + "LSTM_model_3_16_21_0.99517.h5",
-                                     
-                                     path + "LSTM_model_4_08_14_0.99543.h5",
-                                     path + "LSTM_model_4_02_18_0.99563.h5",
-                                     path + "LSTM_model_4_12_19_0.99547.h5",
+weights_location_dict = {'regular': [path + "LSTM_model_0_0_64_29_0.97057.h5",
+                                     path + "LSTM_model_1_1_64_22_0.97257.h5",
+                                     path + "LSTM_model_2_2_64_27_0.97059.h5",
+                                     path + "LSTM_model_3_3_64_21_0.97107.h5",
+                                     path + "LSTM_model_4_1_64_33_0.97003.h5",
                                     ],
-                         'ud': [path + "LSTM_model_ud_0_8_18_0.99574.h5",
-                                path + "LSTM_model_ud_0_2_21_0.99571.h5",
-                                path + "LSTM_model_ud_0_4_16_0.99574.h5",
+                         'ud': [path + "LSTM_model_ud_0_0_64_29_0.97174.h5",
+                                path + "LSTM_model_ud_1_1_64_27_0.97198.h5",
+                                path + "LSTM_model_ud_2_2_64_31_0.97011.h5",
+                                path + "LSTM_model_ud_3_3_64_32_0.97185.h5",
+                                path + "LSTM_model_ud_4_1_64_31_0.97023.h5",
+                               ]
+                               }
 
-                                path + "LSTM_model_ud_1_4_23_0.99585.h5",
-                                path + "LSTM_model_ud_1_2_17_0.99570.h5",
-                                path + "LSTM_model_ud_1_8_19_0.99575.h5",
-
-                                path + "LSTM_model_ud_2_8_25_0.99558.h5",
-                                path + "LSTM_model_ud_2_4_26_0.99550.h5",
-                                path + "LSTM_model_ud_2_2_18_0.99518.h5",
-
-                                path + "LSTM_model_ud_3_8_25_0.99553.h5",
-                                path + "LSTM_model_ud_3_2_16_0.99543.h5",
-                                path + "LSTM_model_ud_3_4_30_0.99528.h5",
-
-                                path + "LSTM_model_ud_4_4_22_0.99578.h5",
-                                path + "LSTM_model_ud_4_8_23_0.99544.h5",
-                                path + "LSTM_model_ud_4_2_20_0.99543.h5",
-                               ]}
-
-GetData_ud = DataGenerator(add_trend=add_trend, use_diffs_leaky=use_diffs_leaky, dataset_mode='ud')
-GetData_regular = DataGenerator(add_trend=add_trend, use_diffs_leaky=use_diffs_leaky, dataset_mode='regular')
+GetData_ud = DataGenerator(add_trend=add_trend, dataset_mode='ud')
+GetData_regular = DataGenerator(add_trend=add_trend, dataset_mode='regular')
 
 CV = Pipeline(DL_model, start_fold, GetData=GetData_regular)
 CV_ud = Pipeline(DL_model, start_fold, GetData=GetData_ud)

@@ -100,8 +100,10 @@ class DataGenerator:
         df_test = pd.read_csv(data_path + test_name, index_col=None, header=0)
         self.df_test = df_test
 
-        df_train_xstart = pd.read_csv(data_path + 'train.csv', index_col=None, header=0)
-        df_train_xstart['well_id'] += 4000
+        df_train_xstart = pd.read_csv(data_path + 'test_cax.csv')
+        dl = pd.read_csv(data_path + 'processed.csv')
+        df_train_xstart["label"] = dl["label"]
+        # df_train_xstart['well_id'] += 4000
 
         df_test['label'] = np.nan
 
@@ -111,7 +113,7 @@ class DataGenerator:
 
 
         df_train_xstart, y_train_xstart = self.preprocessing_initial(df_train_xstart.drop('row_id', axis=1),
-                                                                     note='Train_xstart',add_trend=self.add_trend)
+                                                                     note='Train_xstart', add_trend=self.add_trend)
         df_train_xstart = self.augment_xstarter_data(df_train_xstart)
 
         df_test, y_test = self.preprocessing_initial(df_test.drop('row_id', axis=1), note='Test')

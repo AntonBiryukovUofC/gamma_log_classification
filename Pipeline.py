@@ -78,7 +78,7 @@ class Pipeline():
                                           min_delta=min_delta)
 
         self.reduce_lr = ReduceLROnPlateau(monitor='val_accuracy', factor=0.3,
-                                           patience=int(patience / 3),
+                                           patience=int(patience / 6),
                                            min_lr=self.lr / 1000, verbose=1, mode='max')
 
     def train(self, optimizer=None, freq_encoder=False):
