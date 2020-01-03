@@ -66,7 +66,7 @@ class Pipeline():
 
     def validation(self, weights_location_list, freq_encoder=False):
         print('Validation started')
-        assert len(weights_location_list) == 5
+        assert len(weights_location_list) == 10
         # kfold cross-validation
         kf = KFold(self.n_fold, shuffle=True, random_state=42)
 
@@ -85,7 +85,7 @@ class Pipeline():
             else:
                 X_test = self.GetData.X_test
             
-            k = 1
+            k = 2
             for j in range(k):
                 weights_loc = weights_location_list[k*fold + j]
                 self.model = load_model(weights_loc)
@@ -106,17 +106,35 @@ add_trend = False
 freq_enc = False
 use_diffs_leaky = False
 
-weights_location_dict = {'regular': [path + "LSTM_model_0_0_64_29_0.97057.h5",
+weights_location_dict = {'regular': [path + "LSTM_model_0_0_32_23_0.97123.h5",
+                                     path + "LSTM_model_0_0_48_29_0.97091.h5",
+
+                                     path + "LSTM_model_1_1_32_24_0.97241.h5",
                                      path + "LSTM_model_1_1_64_22_0.97257.h5",
+
+                                     path + "LSTM_model_2_2_48_35_0.97066.h5",
                                      path + "LSTM_model_2_2_64_27_0.97059.h5",
-                                     path + "LSTM_model_3_3_64_21_0.97107.h5",
-                                     path + "LSTM_model_4_1_64_33_0.97003.h5",
+
+                                     path + "LSTM_model_3_3_24_23_0.97275.h5",
+                                     path + "LSTM_model_3_3_32_24_0.97257.h5",
+
+                                     path + "LSTM_model_4_1_24_27_0.97136.h5",
+                                     path + "LSTM_model_4_1_32_19_0.97179.h5",
                                     ],
-                         'ud': [path + "LSTM_model_ud_0_0_64_29_0.97174.h5",
-                                path + "LSTM_model_ud_1_1_64_27_0.97198.h5",
+                         'ud': [path + "LSTM_model_ud_0_0_48_27_0.97136.h5",
+                                path + "LSTM_model_ud_0_0_64_29_0.97174.h5",
+
+                                path + "LSTM_model_ud_1_1_32_25_0.97223.h5",
+                                path + "LSTM_model_ud_1_1_64_29_0.97222.h5",
+
                                 path + "LSTM_model_ud_2_2_64_31_0.97011.h5",
-                                path + "LSTM_model_ud_3_3_64_32_0.97185.h5",
-                                path + "LSTM_model_ud_4_1_64_31_0.97023.h5",
+                                path + "LSTM_model_ud_2_2_80_25_0.97046.h5",
+
+                                path + "LSTM_model_ud_3_3_32_25_0.97209.h5",
+                                path + "LSTM_model_ud_3_3_80_25_0.97216.h5",
+
+                                path + "LSTM_model_ud_4_1_32_20_0.97177.h5",
+                                path + "LSTM_model_ud_4_1_24_21_0.97208.h5",
                                ]
                                }
 
